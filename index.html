@@ -4052,7 +4052,7 @@ goHome = function() {
 function loadTechTickets(staff, opts) {
   opts = opts || {};
   showLoading(opts.refresh ? '🔄 กำลังรีเฟรช... / Refreshing' : 'กำลังโหลดใบงาน...');
-  fetch(APPS_SCRIPT_URL + '?action=getTechTickets&staffId=' + staff.id)
+  return fetch(APPS_SCRIPT_URL + '?action=getTechTickets&staffId=' + staff.id)
     .then(function(r) { return r.json(); })
     .then(function(data) {
       hideLoading();
@@ -4100,7 +4100,10 @@ function renderTechList(){
 
   // Header (glassy gradient via CSS) + refresh/logout
   var h='<div class="tech-hdr"><div class="ui"><h1>'+esc(u.name)+' ('+u.id+')</h1><div class="sub">'+esc(u.dept)+'</div></div>'
-   +'<button onclick="appLogout()" style="min-width:88px;display:inline-flex;align-items:center;justify-content:center;gap:5px;border-radius:12px;padding:9px 12px;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.22);color:#fff;border:1px solid rgba(255,255,255,.38);cursor:pointer;font-family:inherit;backdrop-filter:blur(10px)">↩ ออก</button></div></div>';
+   +'<div style="display:flex;gap:8px;align-items:center">'
+   +'<button id="tRefreshBtn" onclick="tRefresh()" style="min-width:88px;display:inline-flex;align-items:center;justify-content:center;gap:5px;border-radius:12px;padding:9px 12px;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.22);color:#fff;border:1px solid rgba(255,255,255,.38);cursor:pointer;font-family:inherit;backdrop-filter:blur(10px)"><span id="tRefreshIcon">🔄</span> <span id="tRefreshLbl">รีเฟรช</span></button>'
+   +'<button onclick="appLogout()" style="min-width:88px;display:inline-flex;align-items:center;justify-content:center;gap:5px;border-radius:12px;padding:9px 12px;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.22);color:#fff;border:1px solid rgba(255,255,255,.38);cursor:pointer;font-family:inherit;backdrop-filter:blur(10px)">↩ ออก</button>'
+   +'</div></div></div>';
 
   // ➕ ENG can raise a ticket (compact) — opens the form; submits as 🟠 Submitted to GM
   h+='<div style="padding:10px 12px 2px"><div onclick="techCreateTicket()" style="display:flex;align-items:center;gap:12px;padding:11px 13px;border-radius:16px;background:var(--glass-bg);border:1px solid var(--glass-border);box-shadow:var(--glass-shadow);backdrop-filter:blur(20px) saturate(160%);-webkit-backdrop-filter:blur(20px) saturate(160%);cursor:pointer">'
@@ -4203,7 +4206,30 @@ function tAccept(tid){
   postToScript({action:'acceptTicket_tech',ticketNumber:tid,staffName:window._loggedInUser.name}).then(function(){hideLoading();var t=_techTickets.find(function(x){return x.ticketNumber===tid;});if(t){t.status='🔵 In Progress';t.acceptedAt=new Date().toISOString();}renderTechList();if(_techCurrent&&_techCurrent.ticketNumber===tid&&document.getElementById('page-tech-detail').classList.contains('active'))tRenderDetail();toast('รับงานแล้ว ✓');}).catch(function(e){hideLoading();toast('Error: '+e.message,'error');});
 }
 
-function tRefresh(){loadTechTickets(window._loggedInUser,{refresh:true});}
+function tRefresh(){
+  var btn=document.getElementById('tRefreshBtn'),
+      icon=document.getElementById('tRefreshIcon'),
+      lbl=document.getElementById('tRefreshLbl');
+  var t0=Date.now();
+  if(btn) btn.disabled=true;
+  if(icon) icon.classList.add('mv-spin');
+  if(lbl) lbl.textContent='กำลังรีเฟรช…';
+  // HARD refresh — drop cached parts so stock levels reload from the sheet too
+  _techParts=[];
+  var done=function(){
+    var wait=Math.max(0,650-(Date.now()-t0));
+    setTimeout(function(){
+      var b=document.getElementById('tRefreshBtn'),
+          i=document.getElementById('tRefreshIcon'),
+          l=document.getElementById('tRefreshLbl');
+      if(i) i.classList.remove('mv-spin');
+      if(b) b.disabled=false;
+      if(l){ l.textContent='✓ อัปเดต'; setTimeout(function(){ var l2=document.getElementById('tRefreshLbl'); if(l2) l2.textContent='รีเฟรช'; },1200); }
+    },wait);
+  };
+  var p=loadTechTickets(window._loggedInUser,{refresh:true});
+  if(p&&p.then){ p.then(done).catch(done); } else { done(); }
+}
 // ENG-raised ticket → opens the standard maintenance form. On submit it's created
 // as 🟠 Submitted (unassigned) and the GM is notified to assign.
 function techCreateTicket(){
