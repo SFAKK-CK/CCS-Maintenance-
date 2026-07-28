@@ -370,7 +370,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .tr-cancel-btn:disabled{opacity:.5;cursor:not-allowed}
 .mv-reassign-panel-sub{font-size:17px;opacity:.65;margin-top:3px}
 .mv-reassign-panel-body{padding:18px;display:flex;flex-direction:column;gap:12px}
-.mv-reassign-opt{width:100%;box-sizing:border-box;display:block;padding:14px;border:none;border-radius:16px;font-size:19px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;text-align:left;line-height:1.4;white-space:normal;word-break:break-word}
+.mv-reassign-opt{width:100%;box-sizing:border-box;display:block;padding:14px;border:none;border-radius:16px;font-size:19px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;text-align:center;line-height:1.4;white-space:normal;word-break:break-word}
 .mv-reassign-opt.general{background:#1a2744;color:white}
 .mv-reassign-opt.electrical{background:#1565c0;color:white}
 .mv-reassign-opt:active{transform:scale(.98)}
@@ -1888,7 +1888,7 @@ input:focus,select:focus,textarea:focus,
             <button class="mv-numpad-btn" onclick="mvNumpadPress('0')">0</button>
             <button class="mv-numpad-btn mv-numpad-del" onclick="mvNumpadDelete()">⌫</button>
           </div>
-          <button class="mv-reassign-cancel" style="margin-top:10px" onclick="closeReassignModal()">ยกเลิก / Cancel</button>
+          <button class="mv-reassign-cancel" style="margin-top:10px;width:100%;box-sizing:border-box;padding:14px;border-radius:16px;font-size:19px;text-align:center" onclick="closeReassignModal()">ยกเลิก / Cancel</button>
         </div>
         <!-- Step 2: Choose action -->
         <div class="mv-reassign-panel-body" id="mvTeamStep" style="display:none">
@@ -1899,10 +1899,10 @@ input:focus,select:focus,textarea:focus,
           <button class="mv-reassign-opt electrical" onclick="confirmReassign('refrigeration')" style="margin-top:10px">
             ❄️ ช่างทำความเย็น<br><small style="font-weight:500;opacity:.8">Refrigeration Maintenance</small>
           </button>
-          <button onclick="confirmResetToSubmitted()" style="margin-top:10px;width:100%;box-sizing:border-box;padding:14px;background:#fff3e0;color:#e65100;border:1.5px solid #fcd34d;border-radius:16px;font-size:19px;font-weight:700;font-family:inherit;cursor:pointer;text-align:left;line-height:1.4;white-space:normal;word-break:break-word">
+          <button onclick="confirmResetToSubmitted()" style="margin-top:10px;width:100%;box-sizing:border-box;padding:14px;background:#fff3e0;color:#e65100;border:1.5px solid #fcd34d;border-radius:16px;font-size:19px;font-weight:700;font-family:inherit;cursor:pointer;text-align:center;line-height:1.4;white-space:normal;word-break:break-word">
             🔙 คืนสถานะรอมอบหมาย<br><small style="font-weight:500;opacity:.8">Reset back to Submitted</small>
           </button>
-          <button class="mv-reassign-cancel" style="margin-top:10px" onclick="closeReassignModal()">ยกเลิก / Cancel</button>
+          <button class="mv-reassign-cancel" style="margin-top:10px;width:100%;box-sizing:border-box;padding:14px;border-radius:16px;font-size:19px;text-align:center" onclick="closeReassignModal()">ยกเลิก / Cancel</button>
         </div>
       </div>
     </div>
@@ -3327,11 +3327,7 @@ function buildMvTicket(t, showAssign, now) {
   const _teamStr = ((t.technician||'')+(t.approver||'')).toLowerCase();
   const _hasTeam = _teamStr.includes('general') || _teamStr.includes('refrigeration');
   const _acceptedT = !!(t.acceptedAt && (''+t.acceptedAt).trim());
-  const acceptBadge = (_isProgT && _hasTeam)
-    ? (_acceptedT
-      ? '<div style="margin-top:6px;display:inline-block;background:#e8f5e9;color:#1b5e20;font-size:15px;font-weight:600;padding:3px 11px;border-radius:20px">✓ ช่างรับงานแล้ว / Accepted</div>'
-      : '<div style="margin-top:6px;display:inline-block;background:#fff3e0;color:#e65100;font-size:15px;font-weight:600;padding:3px 11px;border-radius:20px">⏳ รอช่างรับงาน / Awaiting accept</div>')
-    : '';
+  const _awaitAccept = _isProgT && _hasTeam && !_acceptedT;
   const isGM = mvCurrentRole === 'gm';
   const assignRow = showAssign && isGM ? `
     <div class="mv-assign-row">
@@ -3356,10 +3352,9 @@ function buildMvTicket(t, showAssign, now) {
           <div class="mv-ticket-num">${esc(t.ticketNumber)}${urgentBadge}${overdueBadge}</div>
           <div class="mv-ticket-machine">${esc(t.machine || '—')}</div>
           <div class="mv-ticket-dept">🏭 ${esc(t.department || '—')} · 👤 ${esc(t.reporter || '—')}</div>
-          ${acceptBadge}
         </div>
         <div class="mv-ticket-meta">
-          <div class="mv-ticket-status" style="${statusColor}">${t.status.replace(/[🟠🔵📋⏳🚧🟢❌]/g,'').trim()}</div>
+          <div class="mv-ticket-status" style="${_awaitAccept ? 'background:#fff3e0;color:#e65100' : statusColor}">${_awaitAccept ? '🟠 รอรับงาน' : t.status.replace(/[🟠🔵📋⏳🚧🟢❌]/g,'').trim()}</div>
           <div class="sla-badge-wrap">
             <span class="sla-badge sla-total">📅 ${totalAge}</span>
             ${sla ? `<span class="sla-badge ${sla.cls}">⏱ ${sla.display}${sla.limitStr ? ' / '+sla.limitStr : ''}</span>` : ''}
