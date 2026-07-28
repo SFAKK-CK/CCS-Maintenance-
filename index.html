@@ -3323,6 +3323,15 @@ function buildMvTicket(t, showAssign, now) {
 
   const urgentBadge  = isUrgentT ? '<span style="background:#fde8e8;color:#c0392b;font-size:16px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:6px">🔴 ด่วน</span>' : '';
   const overdueBadge = isOverdue  ? '<span style="background:#fde8e8;color:#c0392b;font-size:16px;font-weight:700;padding:2px 8px;border-radius:10px;margin-left:4px">⚠️ เกินกำหนด</span>' : '';
+  const _isProgT = (t.status||'').includes('In Progress');
+  const _teamStr = ((t.technician||'')+(t.approver||'')).toLowerCase();
+  const _hasTeam = _teamStr.includes('general') || _teamStr.includes('refrigeration');
+  const _acceptedT = !!(t.acceptedAt && (''+t.acceptedAt).trim());
+  const acceptBadge = (_isProgT && _hasTeam)
+    ? (_acceptedT
+      ? '<div style="margin-top:6px;display:inline-block;background:#e8f5e9;color:#1b5e20;font-size:15px;font-weight:600;padding:3px 11px;border-radius:20px">✓ ช่างรับงานแล้ว / Accepted</div>'
+      : '<div style="margin-top:6px;display:inline-block;background:#fff3e0;color:#e65100;font-size:15px;font-weight:600;padding:3px 11px;border-radius:20px">⏳ รอช่างรับงาน / Awaiting accept</div>')
+    : '';
   const isGM = mvCurrentRole === 'gm';
   const assignRow = showAssign && isGM ? `
     <div class="mv-assign-row">
@@ -3347,6 +3356,7 @@ function buildMvTicket(t, showAssign, now) {
           <div class="mv-ticket-num">${esc(t.ticketNumber)}${urgentBadge}${overdueBadge}</div>
           <div class="mv-ticket-machine">${esc(t.machine || '—')}</div>
           <div class="mv-ticket-dept">🏭 ${esc(t.department || '—')} · 👤 ${esc(t.reporter || '—')}</div>
+          ${acceptBadge}
         </div>
         <div class="mv-ticket-meta">
           <div class="mv-ticket-status" style="${statusColor}">${t.status.replace(/[🟠🔵📋⏳🚧🟢❌]/g,'').trim()}</div>
