@@ -1921,6 +1921,14 @@ input:focus,select:focus,textarea:focus,
     <div id="mvUnassigned"><div class="mv-empty"><div class="spinner-sm"></div>กำลังโหลด…</div></div>
     <div id="mvShowMoreU" style="display:none"><button class="mv-show-more" onclick="showMore('U')">แสดงเพิ่มเติม ▼ / Show more</button></div>
 
+    <!-- Awaiting Accept -->
+    <div class="mv-section-title">
+      <span>🟣 รอรับงาน / รอช่างกดรับ</span>
+      <span class="mv-section-count" id="mvCntA">0</span>
+    </div>
+    <div id="mvAwaiting"><div class="mv-empty">—</div></div>
+    <div id="mvShowMoreA" style="display:none"><button class="mv-show-more" onclick="showMore('A')">แสดงเพิ่มเติม ▼ / Show more</button></div>
+
     <!-- In Progress -->
     <div class="mv-section-title">
       <span>🔵 กำลังดำเนินการ</span>
@@ -3033,12 +3041,13 @@ const _origGoHome = goHome;
 // ─── MANAGER VIEW ─────────────────────────────
 let mvTickets = [];
 const MV_PAGE_SIZE = 3;
-let mvShownU = MV_PAGE_SIZE, mvShownP = MV_PAGE_SIZE, mvShownW = MV_PAGE_SIZE;
+let mvShownU = MV_PAGE_SIZE, mvShownP = MV_PAGE_SIZE, mvShownW = MV_PAGE_SIZE, mvShownA = MV_PAGE_SIZE;
 
 function showMore(section) {
   if (section === 'U') mvShownU += MV_PAGE_SIZE;
   if (section === 'P') mvShownP += MV_PAGE_SIZE;
   if (section === 'W') mvShownW += MV_PAGE_SIZE;
+  if (section === 'A') mvShownA += MV_PAGE_SIZE;
   renderManagerView(mvTickets);
 }
 
@@ -3048,7 +3057,7 @@ async function loadManagerView() {
   const lbl = document.getElementById('mvRefreshLbl');
   const _refreshT0 = Date.now();
   btn.disabled = true; icon.textContent = '🔄'; icon.classList.add('mv-spin'); if (lbl) lbl.textContent = 'กำลังรีเฟรช… / Refreshing…';
-  mvShownU = mvShownP = mvShownW = MV_PAGE_SIZE;
+  mvShownU = mvShownP = mvShownW = mvShownA = MV_PAGE_SIZE;
   // Show role badge
   const badge = document.getElementById('mvRoleBadge');
   if (badge) badge.textContent = mvCurrentRole === 'gm' ? '👑 GM' : '👤 Staff';
@@ -3129,6 +3138,7 @@ function renderManagerView(tickets) {
 
   let cntU = 0, cntO = 0, cntInq = 0, cntWP = 0, cntOut = 0, cntOver = 0;
   const unassigned = [];
+  const awaiting   = [];
   const inProgress = [];
   const waiting    = [];
   const cancelled  = [];
@@ -3163,7 +3173,12 @@ function renderManagerView(tickets) {
     if (!matchesSearch(t)) continue;
     searchMatchCount++;
     if (st.indexOf('Submitted') >= 0) unassigned.push(t);
-    else if (st.indexOf('In Progress') >= 0) inProgress.push(t);
+    else if (st.indexOf('In Progress') >= 0) {
+      const _tm2 = ((t.technician||'')+(t.approver||'')).toLowerCase();
+      const _hasTeam2 = _tm2.indexOf('general') >= 0 || _tm2.indexOf('refrigeration') >= 0;
+      const _acc2 = !!(t.acceptedAt && (''+t.acceptedAt).trim());
+      if (_hasTeam2 && !_acc2) awaiting.push(t); else inProgress.push(t);
+    }
     else if (st.indexOf('Inquiring') >= 0 || st.indexOf('PR Approval') >= 0 || st.indexOf('Vendor Selection') >= 0 || st.indexOf('Waiting') >= 0 || st.indexOf('Outside') >= 0) waiting.push(t);
   }
 
@@ -3186,10 +3201,12 @@ function renderManagerView(tickets) {
   document.getElementById('mvCountOverdue').textContent      = cntOver;
 
   document.getElementById('mvCntU').textContent = unassigned.length;
+  document.getElementById('mvCntA').textContent = awaiting.length;
   document.getElementById('mvCntP').textContent = inProgress.length;
   document.getElementById('mvCntW').textContent = waiting.length;
 
   renderSection('mvUnassigned', 'mvShowMoreU', unassigned, mvShownU, true, now);
+  renderSection('mvAwaiting',   'mvShowMoreA', awaiting,   mvShownA, false, now);
   renderSection('mvInProgress', 'mvShowMoreP', inProgress, mvShownP, false, now);
   renderSection('mvWaiting',    'mvShowMoreW', waiting,    mvShownW, false, now);
 
@@ -3354,7 +3371,7 @@ function buildMvTicket(t, showAssign, now) {
           <div class="mv-ticket-dept">🏭 ${esc(t.department || '—')} · 👤 ${esc(t.reporter || '—')}</div>
         </div>
         <div class="mv-ticket-meta">
-          <div class="mv-ticket-status" style="${_awaitAccept ? 'background:#fff3e0;color:#e65100' : statusColor}">${_awaitAccept ? '🟠 รอรับงาน' : t.status.replace(/[🟠🔵📋⏳🚧🟢❌]/g,'').trim()}</div>
+          <div class="mv-ticket-status" style="${_awaitAccept ? 'background:#f3e8ff;color:#6b21a8' : statusColor}">${_awaitAccept ? '🟣 รอรับงาน' : t.status.replace(/[🟠🔵📋⏳🚧🟢❌]/g,'').trim()}</div>
           <div class="sla-badge-wrap">
             <span class="sla-badge sla-total">📅 ${totalAge}</span>
             ${sla ? `<span class="sla-badge ${sla.cls}">⏱ ${sla.display}${sla.limitStr ? ' / '+sla.limitStr : ''}</span>` : ''}
