@@ -4394,6 +4394,7 @@ function tRenderDetail(){
   h+='<div id="tPartsSection">';
   h+='<div class="td-search"><span>🔍</span><input type="text" id="tPQ" placeholder="ค้นหาอะไหล่..." oninput="tFP()"></div>';
   h+='<div id="tPR" class="td-results" style="max-height:170px;overflow-y:auto;margin-bottom:8px"></div>';
+  h+='<div id="tNewItemBox" style="display:none;margin-bottom:10px"></div>';
   h+='<div style="font-size:12px;font-weight:600;margin-bottom:5px">รายการที่เลือก (<span id="tSC">0</span>)</div><div id="tSP" style="margin-bottom:12px"></div>';
   h+='</div>';
   h+='<div class="td-lbl">📷 รูปหลังซ่อม</div><div style="padding:0 4px 8px"><input type="file" accept="image/*" multiple capture="environment" onchange="tHandleCmpPhotos(this.files)" style="font-size:13px"><div id="tPrev_cmp" style="margin-top:6px"></div><div id="tCnt_cmp" style="font-size:11px;color:#94a3b8"></div></div>';
@@ -4481,7 +4482,43 @@ function tRP(q){var el=document.getElementById('tPR');if(!el)return;var h='';q=q
   h+='<div class="td-part-row" onclick="tAddOther()" style="border-top:1px solid #e2e8f0;background:#f8fafc"><div><div class="td-part-name" style="color:#1a73e8">➕ อื่นๆ / Other (ระบุเอง)</div><div class="td-part-code">เพิ่มอะไหล่ที่ไม่อยู่ในระบบ</div></div></div>';
   el.innerHTML=h;}
 function tAP(c){var p=_techParts.find(function(x){return x.code===c;});if(p)_techSelected.push({code:p.code,name:p.name,unit:p.unit,stock:p.stock,qty:1});tRP(document.getElementById('tPQ')?document.getElementById('tPQ').value:'');tRSP();}
-function tAddOther(){var name=prompt('ชื่ออะไหล่ / Part name:');if(!name||!name.trim())return;var unit=prompt('หน่วย / Unit (เช่น ตัว, อัน, เมตร):','ตัว');var code='OTHER-'+Date.now();_techSelected.push({code:code,name:name.trim(),unit:unit||'ตัว',stock:999,qty:1,isOther:true});tRP(document.getElementById('tPQ')?document.getElementById('tPQ').value:'');tRSP();}
+var TD_CATS=['ระบบทำความเย็น','ไฟฟ้าและสื่อสาร','ประปาและสี','อะไหล่ไลน์ผลิต','อะไหล่ซ่อมทั่วไป','งานซ่อมมอเตอร์','เครื่องมือช่าง'];
+var TD_UNITS=['ตัว','อัน','ชุด','เส้น','เมตร','ตลับ','กล่อง','หลอด','ใบ','ลูก','กระป๋อง','ม้วน','ถุง','แผ่น','ฟุต','ลิตร','ถัง','เครื่อง','ก.ก','ML','CC','pcs'];
+var TD_LOCS=['ช่างทำความเย็น','ช่างทั่วไป','ช่างซ่อมบำรุง','ช่างซ่อมไฟฟ้า'];
+
+function tAddOther(){
+  var box=document.getElementById('tNewItemBox'); if(!box) return;
+  function opts(arr){return arr.map(function(v){return '<option value="'+esc(v)+'">'+esc(v)+'</option>';}).join('');}
+  var st='width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-family:inherit;margin-bottom:8px';
+  box.innerHTML=
+    '<div style="border:1.5px solid #93c5fd;background:#f8fbff;border-radius:12px;padding:12px">'
+    +'<div style="font-size:13px;font-weight:700;color:#1a73e8;margin-bottom:8px">➕ เพิ่มอะไหล่ใหม่ / New spare part</div>'
+    +'<label style="font-size:12px;color:#64748b">หมวด / Category *</label><select id="niCat" style="'+st+'">'+opts(TD_CATS)+'</select>'
+    +'<label style="font-size:12px;color:#64748b">ชื่อรายการ / Item name *</label><input id="niName" type="text" placeholder="เช่น ลูกปืน เบอร์ #6205" style="'+st+'">'
+    +'<label style="font-size:12px;color:#64748b">หน่วยนับ / Unit *</label><select id="niUnit" style="'+st+'">'+opts(TD_UNITS)+'</select>'
+    +'<label style="font-size:12px;color:#64748b">จำนวนขั้นต่ำ / Min stock</label><input id="niMin" type="number" min="0" value="0" style="'+st+'">'
+    +'<label style="font-size:12px;color:#64748b">Location / สถานที่เก็บ *</label><select id="niLoc" style="'+st+'">'+opts(TD_LOCS)+'</select>'
+    +'<div style="display:flex;gap:8px;margin-top:4px">'
+    +'<button onclick="tNewItemSave()" style="flex:1;padding:11px;background:#1a73e8;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer">เพิ่ม / Add</button>'
+    +'<button onclick="tNewItemCancel()" style="flex:1;padding:11px;background:#eef2f7;color:#475569;border:none;border-radius:8px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">ยกเลิก</button>'
+    +'</div></div>';
+  box.style.display='block';
+  var n=document.getElementById('niName'); if(n) n.focus();
+}
+function tNewItemCancel(){var b=document.getElementById('tNewItemBox'); if(b){b.style.display='none';b.innerHTML='';}}
+function tNewItemSave(){
+  var cat=(document.getElementById('niCat')||{}).value||'';
+  var name=((document.getElementById('niName')||{}).value||'').trim();
+  var unit=(document.getElementById('niUnit')||{}).value||'';
+  var min=parseInt((document.getElementById('niMin')||{}).value||'0',10)||0;
+  var loc=(document.getElementById('niLoc')||{}).value||'';
+  if(!name){toast('กรุณากรอกชื่อรายการ','error');return;}
+  _techSelected.push({code:'OTHER-'+Date.now(),name:name,unit:unit,stock:0,qty:1,isOther:true,category:cat,minStock:min,location:loc});
+  tNewItemCancel();
+  tRP(document.getElementById('tPQ')?document.getElementById('tPQ').value:'');
+  tRSP();
+  toast('เพิ่มรายการใหม่แล้ว — รอสโตร์ตรวจสอบ ✓','success');
+}
 function tRemP(c){_techSelected=_techSelected.filter(function(s){return s.code!==c;});tRP(document.getElementById('tPQ')?document.getElementById('tPQ').value:'');tRSP();}
 function tChQ(c,d){var s=_techSelected.find(function(x){return x.code===c;});if(s)s.qty=Math.max(1,s.qty+d);tRSP();}
 function tRSP(){var el=document.getElementById('tSP');if(!el)return;var h='';
@@ -4527,7 +4564,7 @@ function tComplete(){
           notes:full,
           department:_techCurrent.department,
           machineCode:_techCurrent.machine,
-          parts:_techSelected.map(function(s){return{code:s.code,name:s.name,qty:s.qty,unit:s.unit};})
+          parts:_techSelected.map(function(s){return{code:s.code,name:s.name,qty:s.qty,unit:s.unit,isOther:!!s.isOther,category:s.category||'',minStock:s.minStock||0,location:s.location||''};})
         };
         if(_cmpPhotos.length>0)deductPayload.photos=_cmpPhotos.map(function(p){return{name:p.name,data:p.data};});
         return postToScript(deductPayload);
