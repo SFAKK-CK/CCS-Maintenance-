@@ -1908,8 +1908,9 @@ input:focus,select:focus,textarea:focus,
     </div>
 
     <!-- Refresh -->
+    <style>@keyframes mvspin{to{transform:rotate(360deg)}}.mv-spin{display:inline-block;animation:mvspin .7s linear infinite}</style>
     <button class="mv-refresh-btn" id="mvRefreshBtn" onclick="loadManagerView()" style="margin-top:12px">
-      <span id="mvRefreshIcon">🔄</span> รีเฟรช / Refresh
+      <span id="mvRefreshIcon">🔄</span> <span id="mvRefreshLbl">รีเฟรช / Refresh</span>
     </button>
 
     <!-- Unassigned -->
@@ -3044,7 +3045,9 @@ function showMore(section) {
 async function loadManagerView() {
   const btn = document.getElementById('mvRefreshBtn');
   const icon = document.getElementById('mvRefreshIcon');
-  btn.disabled = true; icon.textContent = '⏳';
+  const lbl = document.getElementById('mvRefreshLbl');
+  const _refreshT0 = Date.now();
+  btn.disabled = true; icon.textContent = '🔄'; icon.classList.add('mv-spin'); if (lbl) lbl.textContent = 'กำลังรีเฟรช… / Refreshing…';
   mvShownU = mvShownP = mvShownW = MV_PAGE_SIZE;
   // Show role badge
   const badge = document.getElementById('mvRoleBadge');
@@ -3085,7 +3088,11 @@ async function loadManagerView() {
       });
     }
   } finally {
+    const _elapsed = Date.now() - _refreshT0;
+    if (_elapsed < 650) await new Promise(function(r){ setTimeout(r, 650 - _elapsed); });
+    icon.classList.remove('mv-spin');
     btn.disabled = false; icon.textContent = '🔄';
+    if (lbl) { lbl.textContent = '✓ อัปเดตแล้ว / Updated'; setTimeout(function(){ if (lbl) lbl.textContent = 'รีเฟรช / Refresh'; }, 1200); }
   }
 }
 
