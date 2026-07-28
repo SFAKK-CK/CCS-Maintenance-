@@ -370,7 +370,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .tr-cancel-btn:disabled{opacity:.5;cursor:not-allowed}
 .mv-reassign-panel-sub{font-size:17px;opacity:.65;margin-top:3px}
 .mv-reassign-panel-body{padding:18px;display:flex;flex-direction:column;gap:12px}
-.mv-reassign-opt{padding:14px;border:none;border-radius:10px;font-size:19px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;text-align:left;line-height:1.4}
+.mv-reassign-opt{width:100%;box-sizing:border-box;display:block;padding:14px;border:none;border-radius:16px;font-size:19px;font-weight:700;font-family:inherit;cursor:pointer;transition:all .15s;text-align:left;line-height:1.4;white-space:normal;word-break:break-word}
 .mv-reassign-opt.general{background:#1a2744;color:white}
 .mv-reassign-opt.electrical{background:#1565c0;color:white}
 .mv-reassign-opt:active{transform:scale(.98)}
@@ -1899,7 +1899,7 @@ input:focus,select:focus,textarea:focus,
           <button class="mv-reassign-opt electrical" onclick="confirmReassign('refrigeration')" style="margin-top:10px">
             ❄️ ช่างทำความเย็น<br><small style="font-weight:500;opacity:.8">Refrigeration Maintenance</small>
           </button>
-          <button onclick="confirmResetToSubmitted()" style="margin-top:10px;width:100%;padding:14px;background:#fff3e0;color:#e65100;border:1.5px solid #fcd34d;border-radius:10px;font-size:19px;font-weight:700;font-family:inherit;cursor:pointer">
+          <button onclick="confirmResetToSubmitted()" style="margin-top:10px;width:100%;box-sizing:border-box;padding:14px;background:#fff3e0;color:#e65100;border:1.5px solid #fcd34d;border-radius:16px;font-size:19px;font-weight:700;font-family:inherit;cursor:pointer;text-align:left;line-height:1.4;white-space:normal;word-break:break-word">
             🔙 คืนสถานะรอมอบหมาย<br><small style="font-weight:500;opacity:.8">Reset back to Submitted</small>
           </button>
           <button class="mv-reassign-cancel" style="margin-top:10px" onclick="closeReassignModal()">ยกเลิก / Cancel</button>
