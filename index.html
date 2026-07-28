@@ -3269,8 +3269,15 @@ function getSLABadge(t, now) {
     stageStart = t.timestamp;
     limitHours = urgent ? 0.5 : 2;                   // S1
   } else if (st.includes('In Progress')) {
-    stageStart = t.acceptedAt || t.assignedAt || t.timestamp;
-    limitHours = urgent ? BIZ : 2*BIZ;               // S3A / S3BC
+    const _acc = !!(t.acceptedAt && (''+t.acceptedAt).trim());
+    const _hasTeam = /general|refrigeration/.test(((t.technician||'')+(t.approver||'')).toLowerCase());
+    if (_hasTeam && !_acc) {
+      stageStart = t.assignedAt || t.timestamp;
+      limitHours = urgent ? 1 : 4;                   // S2 — assigned, awaiting accept
+    } else {
+      stageStart = t.acceptedAt || t.assignedAt || t.timestamp;
+      limitHours = urgent ? BIZ : 2*BIZ;             // S3A / S3BC — accepted, working
+    }
   } else if (st.includes('PR Approval')) {
     stageStart = t.inquiringAt || t.timestamp;
     limitHours = urgent ? BIZ : 2*BIZ;               // SPR
