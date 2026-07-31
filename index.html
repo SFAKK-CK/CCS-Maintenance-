@@ -4109,6 +4109,18 @@ goHome = function() {
 function loadTechTickets(staff, opts) {
   opts = opts || {};
   if (!opts.refresh) showLoading('กำลังโหลดใบงาน...');
+
+  // Kick the parts fetch off FIRST — it must not sit after the `return`
+  // below, or it becomes unreachable and the picker never gets data.
+  if (!_techParts.length) {
+    _techPartsLoading = true; _techPartsErr = '';
+    fetch(APPS_SCRIPT_URL + '?action=getInventoryItems')
+      .then(function(r){return r.json();})
+      .then(function(d){ if(d.success){ _techParts=d.items||[]; } else { _techPartsErr = d.error||'load failed'; } })
+      .catch(function(e){ _techPartsErr = e.message||'network error'; })
+      .then(function(){ _techPartsLoading = false; _techPartsRedraw(); });
+  }
+
   return fetch(APPS_SCRIPT_URL + '?action=getTechTickets&staffId=' + staff.id)
     .then(function(r) { return r.json(); })
     .then(function(data) {
@@ -4120,14 +4132,6 @@ function loadTechTickets(staff, opts) {
       if (opts.refresh) toast('รีเฟรชแล้ว ✓', 'success');
     })
     .catch(function(e) { hideLoading(); toast('Error: ' + e.message, 'error'); _techTickets = []; renderTechList(); document.getElementById('page-tech').classList.add('active'); });
-  if (!_techParts.length) {
-    _techPartsLoading = true; _techPartsErr = '';
-    fetch(APPS_SCRIPT_URL + '?action=getInventoryItems')
-      .then(function(r){return r.json();})
-      .then(function(d){ if(d.success){ _techParts=d.items||[]; } else { _techPartsErr = d.error||'load failed'; } })
-      .catch(function(e){ _techPartsErr = e.message||'network error'; })
-      .then(function(){ _techPartsLoading = false; _techPartsRedraw(); });
-  }
 }
 
 function tNorm(st){st=String(st);if(st.indexOf('Cancelled')>=0||st.indexOf('cancelled')>=0)return'Cancelled';if(st.indexOf('Completed')>=0)return'Completed';if(st.indexOf('In Progress')>=0)return'In Progress';if(st.indexOf('Inquiring')>=0)return'Inquiring';if(st.indexOf('PR Approval')>=0||st.indexOf('Vendor Selection')>=0||st.indexOf('Vendor Compare')>=0)return'PR Pending';if(st.indexOf('Waiting')>=0&&st.indexOf('Part')>=0)return'Waiting Parts';if(st.indexOf('Outside')>=0)return'Outside Team';if(st.indexOf('Submitted')>=0||st.indexOf('Assigned')>=0)return'New';return'New';}
