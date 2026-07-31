@@ -3272,6 +3272,49 @@ function renderSection(containerId, showMoreId, items, shown, showAssign, now) {
 // ─── SLA BADGE HELPERS ────────────────────────────────────
 // getSLABadge — returns stage age display + color class based on SLA limits
 // Mirrors the exact limits used in slaBreachChecker (BIZ_DAY = 9h)
+// ─── BUSINESS-HOURS ENGINE (mirrors the backend exactly) ───────────
+// Work window 08:00–17:00 = 9 hrs/day. Sunday and public holidays are
+// skipped. The SLA badge MUST use the same clock as slaBreachChecker,
+// otherwise a ticket looks overdue on screen before any alert fires.
+var FE_PUBLIC_HOLIDAYS = ['2026-01-01','2026-01-02','2026-01-03','2026-04-13','2026-04-14','2026-04-15','2026-04-16','2026-05-01','2026-05-31','2026-07-29','2026-07-30','2026-08-12','2026-10-13','2026-12-31'];
+var FE_BIZ_DAY = 9;   // business hours per day
+function feIsHoliday(d){
+  var m=d.getMonth()+1, day=d.getDate();
+  var key=d.getFullYear()+'-'+(m<10?'0'+m:m)+'-'+(day<10?'0'+day:day);
+  return FE_PUBLIC_HOLIDAYS.indexOf(key)>=0;
+}
+function feAdvanceToBiz(date){
+  var d=new Date(date.getTime());
+  while(d.getDay()===0||feIsHoliday(d)){ d.setDate(d.getDate()+1); d.setHours(8,0,0,0); }
+  if(d.getHours()<8){ d.setHours(8,0,0,0); return d; }
+  if(d.getHours()>=17){
+    d.setDate(d.getDate()+1); d.setHours(8,0,0,0);
+    while(d.getDay()===0||feIsHoliday(d)){ d.setDate(d.getDate()+1); d.setHours(8,0,0,0); }
+  }
+  return d;
+}
+function feBizHours(startDate,endDate){
+  if(!startDate||!endDate||endDate<=startDate) return 0;
+  var current=feAdvanceToBiz(new Date(startDate.getTime())), elapsed=0;
+  var guard=0;
+  while(current<endDate && guard++<2000){
+    if(current.getDay()===0||feIsHoliday(current)){
+      current.setDate(current.getDate()+1); current.setHours(8,0,0,0); continue;
+    }
+    var dayEnd=new Date(current); dayEnd.setHours(17,0,0,0);
+    var segEnd=endDate<dayEnd?endDate:dayEnd;
+    if(segEnd>current) elapsed+=(segEnd-current)/3600000;
+    current.setDate(current.getDate()+1); current.setHours(8,0,0,0);
+  }
+  return elapsed;
+}
+function feFmtHours(h){
+  if(h<1) return '<1ชม.';
+  if(h<FE_BIZ_DAY) return Math.floor(h)+'ชม.';
+  var d=h/FE_BIZ_DAY;
+  return (d<10 ? (Math.round(d*10)/10) : Math.floor(d))+'วัน';
+}
+
 function getSLABadge(t, now) {
   const st     = t.status || '';
   const urgent = !!(t.isUrgent && t.isUrgent.includes('Urgent'));
@@ -3314,10 +3357,9 @@ function getSLABadge(t, now) {
 
   if (!stageStart) return null;
 
-  const elapsed = (now - new Date(stageStart)) / 3600000; // hours
-  const display = elapsed < 1   ? '<1ชม.'
-                : elapsed < 24  ? Math.floor(elapsed)+'ชม.'
-                :                 Math.floor(elapsed/24)+'วัน';
+  // Business hours only — same clock the breach checker uses
+  const elapsed = feBizHours(new Date(stageStart), now);
+  const display = feFmtHours(elapsed);
 
   let cls = 'sla-ok'; // green
   if (limitHours) {
@@ -3327,9 +3369,7 @@ function getSLABadge(t, now) {
   }
 
   // Human-readable limit string
-  const limitStr = limitHours
-    ? (limitHours < 24 ? limitHours+'ชม.' : Math.floor(limitHours/24)+'วัน')
-    : null;
+  const limitStr = limitHours ? feFmtHours(limitHours) : null;
 
   const pctNum   = limitHours ? Math.min(Math.round(elapsed / limitHours * 100), 999) : null;
   const barWidth = limitHours ? Math.min(elapsed / limitHours * 100, 100) : 0;
