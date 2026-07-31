@@ -1915,9 +1915,10 @@ input:focus,select:focus,textarea:focus,
     </div>
 
     <!-- Refresh -->
-    <style>@keyframes mvspin{to{transform:rotate(360deg)}}.mv-spin{display:inline-block;animation:mvspin .7s linear infinite}</style>
-    <button class="mv-refresh-btn" id="mvRefreshBtn" onclick="loadManagerView()" style="margin-top:12px">
-      <span id="mvRefreshIcon">🔄</span> <span id="mvRefreshLbl">รีเฟรช / Refresh</span>
+    <style>@keyframes rfshim{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}.rf-btn{position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:border-color .2s}.rf-shim{position:absolute;inset:0;display:none;pointer-events:none;background:linear-gradient(90deg,transparent,rgba(125,125,125,.18),transparent);animation:rfshim 1.1s ease-in-out infinite}.rf-btn.busy .rf-shim{display:block}.rf-ok{display:none}.rf-btn.done .rf-ok{display:block}.rf-btn.done .rf-ico{display:none}.rf-btn.busy .rf-ico{opacity:.45}</style>
+    <button class="mv-refresh-btn rf-btn" id="mvRefreshBtn" onclick="loadManagerView()" style="margin-top:12px">
+      <span id="mvRefreshIcon"><svg class="rf-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="width:17px;height:17px;flex:none"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg><svg class="rf-ok" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="width:17px;height:17px;flex:none"><path d="M20 6 9 17l-5-5"/></svg></span> <span id="mvRefreshLbl">รีเฟรช / Refresh</span>
+      <span class="rf-shim"></span>
     </button>
 
     <!-- Unassigned -->
@@ -3063,7 +3064,7 @@ async function loadManagerView() {
   const icon = document.getElementById('mvRefreshIcon');
   const lbl = document.getElementById('mvRefreshLbl');
   const _refreshT0 = Date.now();
-  btn.disabled = true; icon.textContent = '🔄'; icon.classList.add('mv-spin'); if (lbl) lbl.textContent = 'กำลังรีเฟรช… / Refreshing…';
+  btn.disabled = true; btn.classList.remove('done'); btn.classList.add('busy'); if (lbl) lbl.textContent = 'กำลังรีเฟรช… / Refreshing…';
   mvShownU = mvShownP = mvShownW = mvShownA = MV_PAGE_SIZE;
   // Show role badge
   const badge = document.getElementById('mvRoleBadge');
@@ -3106,9 +3107,14 @@ async function loadManagerView() {
   } finally {
     const _elapsed = Date.now() - _refreshT0;
     if (_elapsed < 650) await new Promise(function(r){ setTimeout(r, 650 - _elapsed); });
-    icon.classList.remove('mv-spin');
-    btn.disabled = false; icon.textContent = '🔄';
-    if (lbl) { lbl.textContent = '✓ อัปเดตแล้ว / Updated'; setTimeout(function(){ if (lbl) lbl.textContent = 'รีเฟรช / Refresh'; }, 1200); }
+    btn.classList.remove('busy'); btn.classList.add('done');
+    btn.disabled = false;
+    if (lbl) { lbl.textContent = 'อัปเดตแล้ว / Updated'; }
+    setTimeout(function(){
+      var b2=document.getElementById('mvRefreshBtn'), l2=document.getElementById('mvRefreshLbl');
+      if (b2) b2.classList.remove('done');
+      if (l2) l2.textContent = 'รีเฟรช / Refresh';
+    }, 1400);
   }
 }
 
@@ -4051,7 +4057,7 @@ goHome = function() {
 // ── Tech ticket list ──
 function loadTechTickets(staff, opts) {
   opts = opts || {};
-  showLoading(opts.refresh ? '🔄 กำลังรีเฟรช... / Refreshing' : 'กำลังโหลดใบงาน...');
+  if (!opts.refresh) showLoading('กำลังโหลดใบงาน...');
   return fetch(APPS_SCRIPT_URL + '?action=getTechTickets&staffId=' + staff.id)
     .then(function(r) { return r.json(); })
     .then(function(data) {
@@ -4104,7 +4110,7 @@ function renderTechList(){
   // Header (glassy gradient via CSS) + refresh/logout
   var h='<div class="tech-hdr"><div class="ui"><h1>'+esc(u.name)+' ('+u.id+')</h1><div class="sub">'+esc(u.dept)+'</div></div>'
    +'<div style="display:flex;gap:8px;align-items:center">'
-   +'<button id="tRefreshBtn" onclick="tRefresh()" style="min-width:88px;display:inline-flex;align-items:center;justify-content:center;gap:5px;border-radius:12px;padding:9px 12px;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.22);color:#fff;border:1px solid rgba(255,255,255,.38);cursor:pointer;font-family:inherit;backdrop-filter:blur(10px)"><span id="tRefreshIcon">🔄</span> <span id="tRefreshLbl">รีเฟรช</span></button>'
+   +'<button id="tRefreshBtn" class="rf-btn" onclick="tRefresh()" style="min-width:88px;display:inline-flex;align-items:center;justify-content:center;gap:5px;border-radius:12px;padding:9px 12px;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.22);color:#fff;border:1px solid rgba(255,255,255,.38);cursor:pointer;font-family:inherit;backdrop-filter:blur(10px)"><span id="tRefreshIcon"><svg class=\"rf-ico\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" style=\"width:15px;height:15px;flex:none\"><path d=\"M21 12a9 9 0 1 1-2.6-6.4\"/><path d=\"M21 3v6h-6\"/></svg><svg class=\"rf-ok\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2.4\" stroke-linecap=\"round\" stroke-linejoin=\"round\" style=\"width:15px;height:15px;flex:none\"><path d=\"M20 6 9 17l-5-5\"/></svg></span> <span id="tRefreshLbl">รีเฟรช</span><span class="rf-shim"></span></button>'
    +'<button onclick="appLogout()" style="min-width:88px;display:inline-flex;align-items:center;justify-content:center;gap:5px;border-radius:12px;padding:9px 12px;font-size:12.5px;font-weight:700;background:rgba(255,255,255,.22);color:#fff;border:1px solid rgba(255,255,255,.38);cursor:pointer;font-family:inherit;backdrop-filter:blur(10px)">↩ ออก</button>'
    +'</div></div></div>';
 
@@ -4214,8 +4220,7 @@ function tRefresh(){
       icon=document.getElementById('tRefreshIcon'),
       lbl=document.getElementById('tRefreshLbl');
   var t0=Date.now();
-  if(btn) btn.disabled=true;
-  if(icon) icon.classList.add('mv-spin');
+  if(btn){ btn.disabled=true; btn.classList.remove('done'); btn.classList.add('busy'); }
   if(lbl) lbl.textContent='กำลังรีเฟรช…';
   // HARD refresh — drop cached parts so stock levels reload from the sheet too
   _techParts=[];
@@ -4225,9 +4230,13 @@ function tRefresh(){
       var b=document.getElementById('tRefreshBtn'),
           i=document.getElementById('tRefreshIcon'),
           l=document.getElementById('tRefreshLbl');
-      if(i) i.classList.remove('mv-spin');
-      if(b) b.disabled=false;
-      if(l){ l.textContent='✓ อัปเดต'; setTimeout(function(){ var l2=document.getElementById('tRefreshLbl'); if(l2) l2.textContent='รีเฟรช'; },1200); }
+      if(b){ b.classList.remove('busy'); b.classList.add('done'); b.disabled=false; }
+      if(l) l.textContent='อัปเดตแล้ว';
+      setTimeout(function(){
+        var b2=document.getElementById('tRefreshBtn'), l2=document.getElementById('tRefreshLbl');
+        if(b2) b2.classList.remove('done');
+        if(l2) l2.textContent='รีเฟรช';
+      },1400);
     },wait);
   };
   var p=loadTechTickets(window._loggedInUser,{refresh:true});
