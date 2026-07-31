@@ -4248,8 +4248,9 @@ function tRmPhoto(which,i){if(which==='upd'){_updPhotos.splice(i,1);}else{_cmpPh
 // ── Inquiring parts search ──
 var _inqSelected=[],_inqMode='inv';
 function tInqMode(m,el){
-  if(m==='txt'&&_inqSelected.length>0)return;
-  var _md=document.getElementById('tUDet');if(m==='inv'&&_md&&(_md.value||'').trim())return;
+  if(m===_inqMode)return;
+  // Clear the list before switching — the two modes must not be mixed on one PR.
+  if(_inqSelected.length>0){toast('ลบรายการที่เลือกก่อนเปลี่ยนโหมด','warn');return;}
   _inqMode=m;_inqSelected=[];
   var wrap=document.getElementById('tInqItemsWrap');
   if(wrap){wrap.querySelectorAll('.td-pill').forEach(function(p){p.className='td-pill';});}
@@ -4257,9 +4258,8 @@ function tInqMode(m,el){
   var inv=document.getElementById('tInqInv'),txt=document.getElementById('tInqTxt');
   if(inv)inv.style.display=(m==='inv')?'block':'none';
   if(txt)txt.style.display=(m==='inv')?'none':'block';
-  tInqRSP();tInqTxtChk();
+  tInqRSP();
 }
-function tInqTxtChk(){var md=document.getElementById('tUDet');var ip=document.getElementById('tInqInvPill');if(!ip)return;var has=md&&(md.value||'').trim().length>0;if(has){ip.classList.add('dis');}else{ip.classList.remove('dis');}}
 function tInqFP(){tInqRP((document.getElementById('tInqQ').value||'').trim());}
 function tInqRP(q){var el=document.getElementById('tInqPR');if(!el)return;var h='';q=q.toLowerCase();
   if(!_techParts.length){
@@ -4270,9 +4270,7 @@ function tInqRP(q){var el=document.getElementById('tInqPR');if(!el)return;var h=
   _techParts.forEach(function(p){if(q&&p.name.toLowerCase().indexOf(q)<0&&p.code.toLowerCase().indexOf(q)<0)return;if(_inqSelected.find(function(s){return s.code===p.code;}))return;
   var sc=p.stock<=0?'td-stock-out':(p.stock<=3?'td-stock-low':'td-stock-ok'),sl=p.stock<=0?'หมด':(p.stock<=3?'ต่ำ '+p.stock:'คงเหลือ '+p.stock);
   h+='<div class="td-part-row" onclick="tInqAP(\''+esc(p.code)+'\')"><div><div class="td-part-name">'+esc(p.name)+'</div><div class="td-part-code">'+esc(p.code)+' | '+esc(p.unit)+'</div></div><span class="td-stock-badge '+sc+'">'+sl+'</span></div>';});
-  h+='<div class="td-part-row" onclick="tInqAddNew()" style="border-top:1px solid #e2e8f0;background:#f8fafc"><div><div class="td-part-name" style="color:#1a73e8">➕ อื่นๆ / New part (ระบุเอง)</div><div class="td-part-code">เพิ่มอะไหล่ที่ไม่อยู่ในระบบ</div></div></div>';
   el.innerHTML=h;}
-function tInqAddNew(){ _niTarget='inq'; tAddOther(); }
 function tInqAP(c){var p=_techParts.find(function(x){return x.code===c;});if(p)_inqSelected.push({code:p.code,name:p.name,unit:p.unit,stock:p.stock,qty:1});tInqRP(document.getElementById('tInqQ')?document.getElementById('tInqQ').value:'');tInqRSP();}
 function tInqRemP(c){_inqSelected=_inqSelected.filter(function(s){return s.code!==c;});tInqRP(document.getElementById('tInqQ')?document.getElementById('tInqQ').value:'');tInqRSP();}
 function tInqChQ(c,d){var s=_inqSelected.find(function(x){return x.code===c;});if(s)s.qty=Math.max(1,s.qty+d);tInqRSP();}
@@ -4280,7 +4278,10 @@ function tInqRSP(){var el=document.getElementById('tInqSP');if(!el)return;var h=
   _inqSelected.forEach(function(s){
   h+='<div class="td-sel-part"><div class="td-sel-row"><div><div class="td-sel-name">'+esc(s.name)+'</div><div class="td-sel-code">'+esc(s.code)+' | คงเหลือ: '+s.stock+'</div></div><button class="td-sel-rm" onclick="tInqRemP(\''+esc(s.code)+'\')">✕</button></div>';
   h+='<div class="td-qty-row"><div class="td-qty-ctrl"><button onclick="tInqChQ(\''+esc(s.code)+'\',-1)">-</button><div class="v">'+s.qty+'</div><button onclick="tInqChQ(\''+esc(s.code)+'\',1)">+</button></div><span class="td-qty-unit">'+esc(s.unit)+'</span></div></div>';});
-  el.innerHTML=h;var sc=document.getElementById('tInqSC');if(sc)sc.textContent=_inqSelected.length;var tp=document.getElementById('tInqTxtPill');if(tp){if(_inqSelected.length>0){tp.classList.add('dis');}else{tp.classList.remove('dis');}}}
+  el.innerHTML=h;var sc=document.getElementById('tInqSC');if(sc)sc.textContent=_inqSelected.length;
+  // Lock the pill for the mode you are NOT in while a list is building.
+  var other=document.getElementById(_inqMode==='inv'?'tInqTxtPill':'tInqInvPill');
+  if(other){if(_inqSelected.length>0){other.classList.add('dis');}else{other.classList.remove('dis');}}}
 
 function tOpen(tid,mode){
   _techCurrent=_techTickets.find(function(x){return x.ticketNumber===tid;});if(!_techCurrent)return;
@@ -4377,9 +4378,16 @@ function tRenderDetail(){
   h+='<div class="td-lbl">เลือกประเภทรายการ</div><div class="td-pills"><div class="td-pill on" id="tInqInvPill" onclick="tInqMode(\'inv\',this)">📦 เลือกจากสต็อก</div><div class="td-pill" id="tInqTxtPill" onclick="tInqMode(\'txt\',this)">📝 ระบุเอง (ไม่มีในระบบ)</div></div>';
   h+='<div id="tInqInv"><div class="td-search"><span>🔍</span><input type="text" id="tInqQ" placeholder="ค้นหาอะไหล่..." oninput="tInqFP()"></div>';
   h+='<div id="tInqPR" class="td-results" style="max-height:170px;overflow-y:auto;margin-bottom:8px"></div>';
-  h+='<div style="font-size:12px;font-weight:600;margin-bottom:5px">รายการที่เลือก (<span id="tInqSC">0</span>)</div><div id="tInqSP" style="margin-bottom:8px"></div></div>';
+  h+='</div>';
+  // ── ระบุเอง (ไม่มีในระบบ) — the ONLY place a new spare part is created ──
+  // Each item added here is written to ฐานข้อมูลรายการ with status "Inactive"
+  // when the PR is submitted. The store team activates it after review.
+  h+='<div id="tInqTxt" style="display:none">';
+  h+='<div style="font-size:12px;color:#92400e;background:#fff7ed;border-radius:8px;padding:9px 11px;margin-bottom:9px">รายการใหม่จะถูกบันทึกเข้าฐานข้อมูลรายการ สถานะ <b>Inactive</b> รอสโตร์ตรวจสอบก่อนใช้งาน</div>';
   h+='<div id="tInqNewItemBox" style="display:none;margin-bottom:10px"></div>';
-  h+='<div id="tInqTxt" style="display:none"><div class="td-ta"><textarea id="tUDet" oninput="tInqTxtChk()" placeholder="ระบุชื่อสินค้า ขนาด และจำนวนให้ชัดเจน เช่น:&#10;- ถุงมือยาง Size M × 10 กล่อง&#10;- สายพาน B-52 × 2 เส้น&#10;- น้ำมันหล่อลื่น Shell Omala 220 × 1 กระป๋อง&#10;&#10;Specify item name, size, and quantity clearly."></textarea></div></div>';
+  h+='<button type="button" onclick="tAddOther()" style="width:100%;padding:11px;background:#eef4ff;color:#1a73e8;border:1.5px dashed #93c5fd;border-radius:10px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer;margin-bottom:4px">➕ เพิ่มรายการใหม่ / Add new item</button>';
+  h+='</div>';
+  h+='<div style="font-size:12px;font-weight:600;margin-bottom:5px">รายการที่เลือก (<span id="tInqSC">0</span>)</div><div id="tInqSP" style="margin-bottom:8px"></div>';
   h+='</div>';
   h+='<div id="tSparesWrap" style="display:none"><div class="td-lbl">🔩 ชื่ออะไหล่ที่ใช้ / Spare Parts Used</div><div class="td-ta"><input type="text" id="tUSpares" placeholder="เช่น: ปั๊มน้ำ No.3, สายพาน B-52, มอเตอร์ 2HP..."></div><div style="font-size:11px;color:#94a3b8;padding:0 4px 4px">ระบุชื่ออะไหล่ให้ชัดเจน / Please specify exact part names</div></div>';
   h+='<div id="tPhotoWrap" style="display:none"><div class="td-lbl">📷 รูปภาพอ้างอิง / Reference Photos</div><div style="padding:0 4px 8px"><input type="file" accept="image/*" multiple capture="environment" onchange="tHandleUpdPhotos(this.files)" style="font-size:13px"><div id="tPrev_upd" style="margin-top:6px"></div><div id="tCnt_upd" style="font-size:11px;color:#94a3b8"></div></div></div>';
@@ -4401,7 +4409,6 @@ function tRenderDetail(){
   h+='<div id="tPartsSection">';
   h+='<div class="td-search"><span>🔍</span><input type="text" id="tPQ" placeholder="ค้นหาอะไหล่..." oninput="tFP()"></div>';
   h+='<div id="tPR" class="td-results" style="max-height:170px;overflow-y:auto;margin-bottom:8px"></div>';
-  h+='<div id="tNewItemBox" style="display:none;margin-bottom:10px"></div>';
   h+='<div style="font-size:12px;font-weight:600;margin-bottom:5px">รายการที่เลือก (<span id="tSC">0</span>)</div><div id="tSP" style="margin-bottom:12px"></div>';
   h+='</div>';
   h+='<div class="td-lbl">📷 รูปหลังซ่อม</div><div style="padding:0 4px 8px"><input type="file" accept="image/*" multiple capture="environment" onchange="tHandleCmpPhotos(this.files)" style="font-size:13px"><div id="tPrev_cmp" style="margin-top:6px"></div><div id="tCnt_cmp" style="font-size:11px;color:#94a3b8"></div></div>';
@@ -4412,7 +4419,9 @@ function tRenderDetail(){
   if(_techMode==='c'){tRP('');tRSP();}
 }
 function tSetMode(m){
-  var uHas=!!(document.getElementById('tURC')&&document.getElementById('tURC').value.trim())||(document.getElementById('tUDet')&&document.getElementById('tUDet').value.trim());
+  // tUDet (the old free-text PR box) is gone — the ระบุเอง panel now holds
+  // structured items in _inqSelected, so unsaved work is detected from those.
+  var uHas=!!(document.getElementById('tURC')&&document.getElementById('tURC').value.trim())||(document.getElementById('tUDetNonInq')&&document.getElementById('tUDetNonInq').value.trim())||_inqSelected.length>0;
   var cHas=!!(document.getElementById('tCRC')&&document.getElementById('tCRC').value.trim())||(document.getElementById('tCFix')&&document.getElementById('tCFix').value.trim())||_techSelected.length>0;
   if(m==='c'&&uHas){toast('กรุณาล้างข้อมูลในหน้าอัพเดทก่อน','warn');return;}
   if(m==='u'&&cHas){toast('กรุณาล้างข้อมูลในหน้าปิดงานก่อน','warn');return;}
@@ -4456,17 +4465,27 @@ function tSaveUpd(){
 function tSaveUpdDo(rc,techName){
   if(_techNS==='Inquiring'){
     // Build item description from inventory selection or free text
-    var itemDesc='';
-    if(_inqMode==='inv'){
-      if(_inqSelected.length===0){hideLoading();toast('กรุณาเลือกอะไหล่อย่างน้อย 1 รายการ','error');return;}
-      itemDesc=_inqSelected.map(function(s,i){return (i+1)+'. '+s.name+' ('+s.code+') - '+s.qty+' '+s.unit+' (Stock: '+s.stock+')';}).join('\n');
-    } else {
-      var txt=(document.getElementById('tUDet').value||'').trim();
-      if(!txt){hideLoading();toast('กรุณาระบุรายละเอียดสินค้า','error');return;}
-      itemDesc=txt;
+    // Both modes now build the PR from _inqSelected. In 'inv' the rows come from
+    // live stock; in 'txt' they are new parts entered on the ระบุเอง form.
+    if(_inqSelected.length===0){
+      hideLoading();
+      toast(_inqMode==='inv'?'กรุณาเลือกอะไหล่อย่างน้อย 1 รายการ':'กรุณาเพิ่มรายการใหม่อย่างน้อย 1 รายการ','error');
+      return;
     }
+    var itemDesc=_inqSelected.map(function(s,i){
+      return (i+1)+'. '+s.name
+           +(s.isOther?' [รายการใหม่ / NEW ITEM'+(s.category?' — '+s.category:'')+']':' ('+s.code+')')
+           +' - '+s.qty+' '+s.unit
+           +(s.isOther?'':' (Stock: '+s.stock+')');
+    }).join('\n');
+    // Parts that do not exist yet are registered in ฐานข้อมูลรายการ as "Inactive"
+    // by the backend, so the store team can review and activate them.
+    var newItems=_inqSelected.filter(function(s){return s.isOther;}).map(function(s){
+      return {name:s.name,category:s.category||'',unit:s.unit||'',
+              minStock:s.minStock||0,location:s.location||''};
+    });
     var correctionInq='Cause / Saethu: '+rc+'\n\nItems Requested:\n'+itemDesc;
-    postToScript({action:'updateTicketStatus',ticketNumber:_techCurrent.ticketNumber,status:'\u{1F4CB} Inquiring for Quotation',technician:techName,correction:correctionInq,notifyPurchasing:true,quotationPhotos:_updPhotos.map(function(p){return{name:p.name,data:p.data};})}).then(function(){hideLoading();tBack();toast('ส่งใบขอซื้อให้ GM อนุมัติแล้ว ✓');}).catch(function(e){hideLoading();toast('Error: '+e.message,'error');});
+    postToScript({action:'updateTicketStatus',ticketNumber:_techCurrent.ticketNumber,status:'\u{1F4CB} Inquiring for Quotation',technician:techName,correction:correctionInq,notifyPurchasing:true,newItems:newItems,quotationPhotos:_updPhotos.map(function(p){return{name:p.name,data:p.data};})}).then(function(){hideLoading();tBack();toast('ส่งใบขอซื้อให้ GM อนุมัติแล้ว ✓');}).catch(function(e){hideLoading();toast('Error: '+e.message,'error');});
   } else if(_techNS==='Outside Team'){
     var det=(document.getElementById('tUDetNonInq').value||'').trim();if(!det){hideLoading();toast('กรุณากรอกรายละเอียด','error');return;}
     var correction='🔍 สาเหตุ: '+rc+'\n'+det;
@@ -4484,23 +4503,24 @@ function tFP(){tRP((document.getElementById('tPQ').value||'').trim());}
 function tRP(q){var el=document.getElementById('tPR');if(!el)return;var h='';q=q.toLowerCase();
   if(!_techParts.length){
     h+='<div style="padding:10px 12px;font-size:13px;color:#92400e;background:#fff7ed;border-radius:8px;margin-bottom:6px">'
-      +(_techPartsLoading?'กำลังโหลดรายการอะไหล่… / Loading parts…':(_techPartsErr?('โหลดรายการอะไหล่ไม่สำเร็จ / Could not load parts: '+esc(_techPartsErr)):'ยังไม่มีรายการอะไหล่ / No parts loaded — ใช้ "อื่นๆ" ด้านล่าง'))
+      +(_techPartsLoading?'กำลังโหลดรายการอะไหล่… / Loading parts…':(_techPartsErr?('โหลดรายการอะไหล่ไม่สำเร็จ / Could not load parts: '+esc(_techPartsErr)):'ยังไม่มีรายการอะไหล่ / No parts loaded'))
       +'</div>';
   }
   _techParts.forEach(function(p){if(q&&p.name.toLowerCase().indexOf(q)<0&&p.code.toLowerCase().indexOf(q)<0)return;if(_techSelected.find(function(s){return s.code===p.code;}))return;
   var sc=p.stock<=0?'td-stock-out':(p.stock<=3?'td-stock-low':'td-stock-ok'),sl=p.stock<=0?'หมด':(p.stock<=3?'ต่ำ '+p.stock:'คงเหลือ '+p.stock);
   h+='<div class="td-part-row" onclick="tAP(\''+esc(p.code)+'\')"><div><div class="td-part-name">'+esc(p.name)+'</div><div class="td-part-code">'+esc(p.code)+' | '+esc(p.unit)+'</div></div><span class="td-stock-badge '+sc+'">'+sl+'</span></div>';});
   // Always show "Other" option at the bottom for unlisted parts
-  h+='<div class="td-part-row" onclick="tAddOther()" style="border-top:1px solid #e2e8f0;background:#f8fafc"><div><div class="td-part-name" style="color:#1a73e8">➕ อื่นๆ / Other (ระบุเอง)</div><div class="td-part-code">เพิ่มอะไหล่ที่ไม่อยู่ในระบบ</div></div></div>';
   el.innerHTML=h;}
 function tAP(c){var p=_techParts.find(function(x){return x.code===c;});if(p)_techSelected.push({code:p.code,name:p.name,unit:p.unit,stock:p.stock,qty:1});tRP(document.getElementById('tPQ')?document.getElementById('tPQ').value:'');tRSP();}
-var _niTarget='cmp';
 var TD_CATS=['ระบบทำความเย็น','ไฟฟ้าและสื่อสาร','ประปาและสี','อะไหล่ไลน์ผลิต','อะไหล่ซ่อมทั่วไป','งานซ่อมมอเตอร์','เครื่องมือช่าง'];
 var TD_UNITS=['ตัว','อัน','ชุด','เส้น','เมตร','ตลับ','กล่อง','หลอด','ใบ','ลูก','กระป๋อง','ม้วน','ถุง','แผ่น','ฟุต','ลิตร','ถัง','เครื่อง','ก.ก','ML','CC','pcs'];
 var TD_LOCS=['ช่างทำความเย็น','ช่างทั่วไป','ช่างซ่อมบำรุง','ช่างซ่อมไฟฟ้า'];
 
 function tAddOther(){
-  var box=document.getElementById('tNewItemBox') || document.getElementById('tInqNewItemBox'); if(!box) return;
+  // Only ever rendered inside the ระบุเอง panel. Previously this fell back to
+  // the completion panel's box, which is hidden in update mode — so the form
+  // silently rendered off-screen and the button appeared to do nothing.
+  var box=document.getElementById('tInqNewItemBox'); if(!box) return;
   function opts(arr){return arr.map(function(v){return '<option value="'+esc(v)+'">'+esc(v)+'</option>';}).join('');}
   var st='width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #cbd5e1;border-radius:8px;font-size:14px;font-family:inherit;margin-bottom:8px';
   box.innerHTML=
@@ -4518,7 +4538,7 @@ function tAddOther(){
   box.style.display='block';
   var n=document.getElementById('niName'); if(n) n.focus();
 }
-function tNewItemCancel(){var b=document.getElementById('tNewItemBox'); if(b){b.style.display='none';b.innerHTML='';}}
+function tNewItemCancel(){var b=document.getElementById('tInqNewItemBox'); if(b){b.style.display='none';b.innerHTML='';}}
 function tNewItemSave(){
   var cat=(document.getElementById('niCat')||{}).value||'';
   var name=((document.getElementById('niName')||{}).value||'').trim();
@@ -4527,17 +4547,12 @@ function tNewItemSave(){
   var loc=(document.getElementById('niLoc')||{}).value||'';
   if(!name){toast('กรุณากรอกชื่อรายการ','error');return;}
   var rec={code:'OTHER-'+Date.now(),name:name,unit:unit,stock:0,qty:1,isOther:true,category:cat,minStock:min,location:loc};
-  tNewItemCancel();
-  if(_niTarget==='inq'){
-    _inqSelected.push(rec);
-    tInqRP(document.getElementById('tInqQ')?document.getElementById('tInqQ').value:'');
-    tInqRSP();
-  } else {
-    _techSelected.push(rec);
-    tRP(document.getElementById('tPQ')?document.getElementById('tPQ').value:'');
-    tRSP();
+  if(_inqSelected.find(function(s){return s.name===rec.name&&s.category===rec.category;})){
+    toast('มีรายการนี้อยู่แล้ว','warn');return;
   }
-  _niTarget='cmp';
+  tNewItemCancel();
+  _inqSelected.push(rec);
+  tInqRSP();
   toast('เพิ่มรายการใหม่แล้ว — รอสโตร์ตรวจสอบ ✓','success');
 }
 function tRemP(c){_techSelected=_techSelected.filter(function(s){return s.code!==c;});tRP(document.getElementById('tPQ')?document.getElementById('tPQ').value:'');tRSP();}
