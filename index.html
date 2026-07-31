@@ -2315,6 +2315,35 @@ function retrySubmit() {
 // ─── FORM LOGIC ───────────────────────────────
 let isUrgent = false, photos = [], ticketNumber = '';
 
+// ── Prefill the reporter from the Staff ID used to log in ──────────
+// initForm() is the one choke point for the form: the home card, the
+// technician's "create ticket" button and both resets all pass through it.
+// Both fields stay editable — someone may raise a ticket for a colleague.
+function prefillReporter() {
+  var u = window._loggedInUser;
+  if (!u) return;
+
+  var rn = document.getElementById('rname');
+  if (rn && u.name && !rn.value.trim()) rn.value = u.name;
+
+  // Department comes from Staff Registry column D as free text, while the form
+  // is a fixed <select>. Match exactly first, then loosely; if neither hits,
+  // leave it unselected rather than guessing wrong.
+  var sel = document.getElementById('dept');
+  if (sel && u.dept && !sel.value) {
+    var want = String(u.dept).trim().toLowerCase();
+    var opts = sel.options, exact = -1, loose = -1;
+    for (var i = 1; i < opts.length; i++) {
+      var txt = (opts[i].value || opts[i].text || '').trim().toLowerCase();
+      if (!txt) continue;
+      if (txt === want) { exact = i; break; }
+      if (loose < 0 && (txt.indexOf(want) >= 0 || want.indexOf(txt) >= 0)) loose = i;
+    }
+    var pick = exact >= 0 ? exact : loose;
+    if (pick >= 0) sel.selectedIndex = pick;
+  }
+}
+
 function initForm() {
   const now = new Date();
   const pad = n => String(n).padStart(2,'0');
@@ -2336,8 +2365,10 @@ function initForm() {
   // Wire up the machine combobox (search-as-you-type from MACHINE_LIST).
   // Idempotent — guards itself against double-wiring on re-init.
   initMachineCombo();
-  // Refresh the machine list from the Sheet (overrides the hardcoded fallback).
+  // Refresh the machine list from the Sheet.
   fetchMachineList();
+  // Name + department from the logged-in Staff ID.
+  prefillReporter();
 }
 
 // Recognizes both the new "Open PR / เปิดใบขอซื้อ" label and the legacy "Build / สร้าง"
@@ -4232,11 +4263,8 @@ function tRefresh(){
 // ENG-raised ticket → opens the standard maintenance form. On submit it's created
 // as 🟠 Submitted (unassigned) and the GM is notified to assign.
 function techCreateTicket(){
+  // goPage → initForm → prefillReporter() fills name and department.
   goPage('page-form');
-  try{
-    var u=window._loggedInUser;
-    if(u&&u.name){var rn=document.getElementById('rname');if(rn)rn.value=u.name;}
-  }catch(e){}
 }
 
 // ── Detail screen ──
