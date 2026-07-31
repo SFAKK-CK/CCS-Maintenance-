@@ -4405,11 +4405,16 @@ function tRenderDetail(){
     h+='<div class="td-lbl">🔍 สาเหตุ <span class="req">*</span></div><div class="td-ta"><textarea id="tCRC" placeholder="ระบุสาเหตุ..."></textarea></div>';
     h+='<div class="td-lbl">🔧 วิธีแก้ไข <span class="req">*</span></div><div class="td-ta"><textarea id="tCFix" placeholder="วิธีแก้ไข..."></textarea></div>';
   }
-  h+='<div class="td-lbl" style="cursor:pointer" onclick="tToggleParts()">📦 อะไหล่ที่ใช้ <span id="tPartsToggle" style="font-size:12px;color:#94a3b8;margin-left:auto">▼</span></div>';
+  h+='<div class="td-lbl" style="cursor:pointer" onclick="tToggleParts()">📦 อะไหล่ที่ใช้ <span class="req">*</span> <span id="tPartsToggle" style="font-size:12px;color:#94a3b8;margin-left:auto">▼</span></div>';
   h+='<div id="tPartsSection">';
   h+='<div class="td-search"><span>🔍</span><input type="text" id="tPQ" placeholder="ค้นหาอะไหล่..." oninput="tFP()"></div>';
   h+='<div id="tPR" class="td-results" style="max-height:170px;overflow-y:auto;margin-bottom:8px"></div>';
-  h+='<div style="font-size:12px;font-weight:600;margin-bottom:5px">รายการที่เลือก (<span id="tSC">0</span>)</div><div id="tSP" style="margin-bottom:12px"></div>';
+  h+='<div style="font-size:12px;font-weight:600;margin-bottom:5px">รายการที่เลือก (<span id="tSC">0</span>)</div><div id="tSP" style="margin-bottom:10px"></div>';
+  // Parts are mandatory at completion — either pick at least one, or say
+  // explicitly that none were used. Never silently blank.
+  h+='<label id="tNoPartsWrap" style="display:flex;align-items:center;gap:9px;padding:10px 11px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:9px;margin-bottom:12px;cursor:pointer">'
+    +'<input type="checkbox" id="tNoParts" onchange="tNoPartsChg()" style="width:18px;height:18px;flex:none;cursor:pointer">'
+    +'<span style="font-size:13px;color:#475569">ไม่ได้ใช้อะไหล่ / No parts used<br><span style="font-size:11px;color:#94a3b8">งานปรับตั้ง ทำความสะอาด หรือขันแน่น</span></span></label>';
   h+='</div>';
   h+='<div class="td-lbl">📷 รูปหลังซ่อม</div><div style="padding:0 4px 8px"><input type="file" accept="image/*" multiple capture="environment" onchange="tHandleCmpPhotos(this.files)" style="font-size:13px"><div id="tPrev_cmp" style="margin-top:6px"></div><div id="tCnt_cmp" style="font-size:11px;color:#94a3b8"></div></div>';
   h+='<div class="td-lbl">📝 หมายเหตุ</div><div class="td-ta"><textarea id="tCNote" placeholder="หมายเหตุ..."></textarea></div>';
@@ -4426,6 +4431,19 @@ function tSetMode(m){
   if(m==='c'&&uHas){toast('กรุณาล้างข้อมูลในหน้าอัพเดทก่อน','warn');return;}
   if(m==='u'&&cHas){toast('กรุณาล้างข้อมูลในหน้าปิดงานก่อน','warn');return;}
   _techMode=m;document.getElementById('tPU').style.display=m==='u'?'block':'none';document.getElementById('tPC').style.display=m==='c'?'block':'none';document.querySelectorAll('.td-mode').forEach(function(b){b.classList.remove('on');});document.querySelector('.td-mode.m'+m).classList.add('on');if(m==='c'){tRP('');tRSP();}
+}
+// Ticking "no parts used" clears and locks the picker; selecting a part clears
+// the tick. The two can never both be true.
+function tNoPartsChg(){
+  var cb=document.getElementById('tNoParts');if(!cb)return;
+  if(cb.checked&&_techSelected.length>0){
+    _techSelected=[];
+    tRP(document.getElementById('tPQ')?document.getElementById('tPQ').value:'');
+    tRSP();
+  }
+  var q=document.getElementById('tPQ'),pr=document.getElementById('tPR');
+  if(q){q.disabled=cb.checked;q.style.opacity=cb.checked?'0.45':'';}
+  if(pr){pr.style.opacity=cb.checked?'0.45':'';pr.style.pointerEvents=cb.checked?'none':'';}
 }
 function tToggleParts(){var s=document.getElementById('tPartsSection');var t=document.getElementById('tPartsToggle');if(!s)return;if(s.style.display==='none'){s.style.display='block';t.textContent='▲';}else{s.style.display='none';t.textContent='▼';}}
 function tSS(el,st){
@@ -4557,7 +4575,10 @@ function tNewItemSave(){
 }
 function tRemP(c){_techSelected=_techSelected.filter(function(s){return s.code!==c;});tRP(document.getElementById('tPQ')?document.getElementById('tPQ').value:'');tRSP();}
 function tChQ(c,d){var s=_techSelected.find(function(x){return x.code===c;});if(s)s.qty=Math.max(1,s.qty+d);tRSP();}
-function tRSP(){var el=document.getElementById('tSP');if(!el)return;var h='';
+function tRSP(){
+  var _np=document.getElementById('tNoParts');
+  if(_np&&_np.checked&&_techSelected.length>0){_np.checked=false;tNoPartsChg();}
+  var el=document.getElementById('tSP');if(!el)return;var h='';
   _techSelected.forEach(function(s){
   var isOther=s.isOther||s.code.indexOf('OTHER-')===0;
   var info=isOther?'<span style="color:#1a73e8">ระบุเอง / Manual</span>':(s.stock-s.qty<0?'<span style="color:#dc2626">เกิน!</span>':'คงเหลือ: '+s.stock+' → '+(s.stock-s.qty));
@@ -4569,9 +4590,26 @@ function tRSP(){var el=document.getElementById('tSP');if(!el)return;var h='';
 function tComplete(){
   var rc=(document.getElementById('tCRC').value||'').trim(),fix=(document.getElementById('tCFix').value||'').trim();
   if(!rc){toast('กรุณากรอกสาเหตุ','error');return;}
+  // 📦 อะไหล่ที่ใช้ is mandatory: either at least one part, or an explicit
+  // "no parts used". Blocks a silently empty parts record on a closed ticket.
+  var noParts=!!(document.getElementById('tNoParts')&&document.getElementById('tNoParts').checked);
+  if(_techSelected.length===0&&!noParts){
+    var sec=document.getElementById('tPartsSection');
+    if(sec&&sec.style.display==='none'){tToggleParts();}
+    var wrap=document.getElementById('tNoPartsWrap');
+    if(wrap){
+      wrap.scrollIntoView({block:'center',behavior:'smooth'});
+      wrap.style.borderColor='#ef4444';wrap.style.background='#fef2f2';
+      setTimeout(function(){wrap.style.borderColor='#e2e8f0';wrap.style.background='#f8fafc';},2500);
+    }
+    toast('กรุณาเลือกอะไหล่ที่ใช้ หรือติ๊ก "ไม่ได้ใช้อะไหล่"','error');
+    return;
+  }
   var note=(document.getElementById('tCNote').value||'').trim();
   var full='🔍 สาเหตุ: '+rc+'\n🔧 วิธีแก้ไข: '+fix+(note?'\n📝 '+note:'');
-  var partsLog=_techSelected.map(function(s){return s.name+' x'+s.qty;}).join(', ');
+  // Record the no-parts case explicitly so the sheet cell is never ambiguously blank.
+  var partsLog=noParts?'ไม่ได้ใช้อะไหล่ / No parts used'
+                      :_techSelected.map(function(s){return s.name+' x'+s.qty;}).join(', ');
   showLoading('กำลังบันทึก...');
   // Step 0: Ensure ACCEPTED_AT is set (for tickets accepted before the fix)
   postToScript({
