@@ -4009,7 +4009,18 @@ window._loggedInRole = null;
 var _loginCode = '';
 var _techTickets = [];
 var _techCurrent = null;
-var _techParts = [], _techPartsErr = '';
+var _techParts = [], _techPartsErr = '', _techPartsLoading = false;
+// The parts list arrives asynchronously. If a technician opens the parts
+// panel before it lands, nothing used to redraw — the list stayed empty
+// forever. Re-render whichever picker is on screen once data arrives.
+function _techPartsRedraw(){
+  try {
+    var c = document.getElementById('tPR');
+    if (c && c.offsetParent !== null) { var q=document.getElementById('tPQ'); tRP(q?q.value:''); }
+    var i = document.getElementById('tInqPR');
+    if (i && i.offsetParent !== null) { var q2=document.getElementById('tInqQ'); tInqRP(q2?q2.value:''); }
+  } catch(e) {}
+}
 var _techSelected = [];
 var _techMode = 'u';
 var _techNS = 'In Progress';
@@ -4109,10 +4120,14 @@ function loadTechTickets(staff, opts) {
       if (opts.refresh) toast('รีเฟรชแล้ว ✓', 'success');
     })
     .catch(function(e) { hideLoading(); toast('Error: ' + e.message, 'error'); _techTickets = []; renderTechList(); document.getElementById('page-tech').classList.add('active'); });
-  if (!_techParts.length) fetch(APPS_SCRIPT_URL + '?action=getInventoryItems')
-    .then(function(r){return r.json();})
-    .then(function(d){ if(d.success){ _techParts=d.items||[]; } else { _techPartsErr = d.error||'load failed'; } })
-    .catch(function(e){ _techPartsErr = e.message||'network error'; });
+  if (!_techParts.length) {
+    _techPartsLoading = true; _techPartsErr = '';
+    fetch(APPS_SCRIPT_URL + '?action=getInventoryItems')
+      .then(function(r){return r.json();})
+      .then(function(d){ if(d.success){ _techParts=d.items||[]; } else { _techPartsErr = d.error||'load failed'; } })
+      .catch(function(e){ _techPartsErr = e.message||'network error'; })
+      .then(function(){ _techPartsLoading = false; _techPartsRedraw(); });
+  }
 }
 
 function tNorm(st){st=String(st);if(st.indexOf('Cancelled')>=0||st.indexOf('cancelled')>=0)return'Cancelled';if(st.indexOf('Completed')>=0)return'Completed';if(st.indexOf('In Progress')>=0)return'In Progress';if(st.indexOf('Inquiring')>=0)return'Inquiring';if(st.indexOf('PR Approval')>=0||st.indexOf('Vendor Selection')>=0||st.indexOf('Vendor Compare')>=0)return'PR Pending';if(st.indexOf('Waiting')>=0&&st.indexOf('Part')>=0)return'Waiting Parts';if(st.indexOf('Outside')>=0)return'Outside Team';if(st.indexOf('Submitted')>=0||st.indexOf('Assigned')>=0)return'New';return'New';}
@@ -4317,7 +4332,7 @@ function tInqFP(){tInqRP((document.getElementById('tInqQ').value||'').trim());}
 function tInqRP(q){var el=document.getElementById('tInqPR');if(!el)return;var h='';q=q.toLowerCase();
   if(!_techParts.length){
     h+='<div style="padding:10px 12px;font-size:13px;color:#92400e;background:#fff7ed;border-radius:8px;margin-bottom:6px">'
-      +(_techPartsErr?('โหลดรายการอะไหล่ไม่สำเร็จ / Could not load parts: '+esc(_techPartsErr)):'ยังไม่มีรายการอะไหล่ในระบบ / No parts loaded yet')
+      +(_techPartsLoading?'กำลังโหลดรายการอะไหล่… / Loading parts…':(_techPartsErr?('โหลดรายการอะไหล่ไม่สำเร็จ / Could not load parts: '+esc(_techPartsErr)):'ยังไม่มีรายการอะไหล่ในระบบ / No parts loaded yet'))
       +'</div>';
   }
   _techParts.forEach(function(p){if(q&&p.name.toLowerCase().indexOf(q)<0&&p.code.toLowerCase().indexOf(q)<0)return;if(_inqSelected.find(function(s){return s.code===p.code;}))return;
@@ -4537,7 +4552,7 @@ function tFP(){tRP((document.getElementById('tPQ').value||'').trim());}
 function tRP(q){var el=document.getElementById('tPR');if(!el)return;var h='';q=q.toLowerCase();
   if(!_techParts.length){
     h+='<div style="padding:10px 12px;font-size:13px;color:#92400e;background:#fff7ed;border-radius:8px;margin-bottom:6px">'
-      +(_techPartsErr?('โหลดรายการอะไหล่ไม่สำเร็จ / Could not load parts: '+esc(_techPartsErr)):'ยังไม่มีรายการอะไหล่ / No parts loaded — ใช้ "อื่นๆ" ด้านล่าง')
+      +(_techPartsLoading?'กำลังโหลดรายการอะไหล่… / Loading parts…':(_techPartsErr?('โหลดรายการอะไหล่ไม่สำเร็จ / Could not load parts: '+esc(_techPartsErr)):'ยังไม่มีรายการอะไหล่ / No parts loaded — ใช้ "อื่นๆ" ด้านล่าง'))
       +'</div>';
   }
   _techParts.forEach(function(p){if(q&&p.name.toLowerCase().indexOf(q)<0&&p.code.toLowerCase().indexOf(q)<0)return;if(_techSelected.find(function(s){return s.code===p.code;}))return;
