@@ -4503,7 +4503,7 @@ function tSaveUpdDo(rc,techName){
               minStock:s.minStock||0,location:s.location||''};
     });
     var correctionInq='Cause / Saethu: '+rc+'\n\nItems Requested:\n'+itemDesc;
-    postToScript({action:'updateTicketStatus',ticketNumber:_techCurrent.ticketNumber,status:'\u{1F4CB} Inquiring for Quotation',technician:techName,correction:correctionInq,notifyPurchasing:true,newItems:newItems,quotationPhotos:_updPhotos.map(function(p){return{name:p.name,data:p.data};})}).then(function(){hideLoading();tBack();toast('ส่งใบขอซื้อให้ GM อนุมัติแล้ว ✓');}).catch(function(e){hideLoading();toast('Error: '+e.message,'error');});
+    postToScript({action:'updateTicketStatus',ticketNumber:_techCurrent.ticketNumber,status:'\u{1F4CB} Inquiring for Quotation',technician:techName,correction:correctionInq,spareParts:requestedInq,notifyPurchasing:true,newItems:newItems,quotationPhotos:_updPhotos.map(function(p){return{name:p.name,data:p.data};})}).then(function(){hideLoading();tBack();toast('ส่งใบขอซื้อให้ GM อนุมัติแล้ว ✓');}).catch(function(e){hideLoading();toast('Error: '+e.message,'error');});
   } else if(_techNS==='Outside Team'){
     var det=(document.getElementById('tUDetNonInq').value||'').trim();if(!det){hideLoading();toast('กรุณากรอกรายละเอียด','error');return;}
     var correction='🔍 สาเหตุ: '+rc+'\n'+det;
@@ -4606,10 +4606,15 @@ function tComplete(){
     return;
   }
   var note=(document.getElementById('tCNote').value||'').trim();
-  var full='🔍 สาเหตุ: '+rc+'\n🔧 วิธีแก้ไข: '+fix+(note?'\n📝 '+note:'');
+  // rc is the saved correction when one exists, and it already carries the
+  // "🔍 สาเหตุ:" label — don't stack a second one on top of it.
+  var causePart=(rc.indexOf('🔍 สาเหตุ:')===0)?rc:('🔍 สาเหตุ: '+rc);
+  var full=causePart+'\n🔧 วิธีแก้ไข: '+fix+(note?'\n📝 '+note:'');
   // Record the no-parts case explicitly so the sheet cell is never ambiguously blank.
   var partsLog=noParts?'ไม่ได้ใช้อะไหล่ / No parts used'
                       :_techSelected.map(function(s){return s.name+' x'+s.qty;}).join(', ');
+  // Labelled so it sits under any "ขอซื้อ / Requested" block already in column P.
+  var usedLog='ใช้จริง / Used:\n'+partsLog;
   showLoading('กำลังบันทึก...');
   // Step 0: Ensure ACCEPTED_AT is set (for tickets accepted before the fix)
   postToScript({
@@ -4624,7 +4629,8 @@ function tComplete(){
       status:'🟢 Completed',
       technician:window._loggedInUser.name,
       correction:full,
-      spareParts:partsLog
+      spareParts:usedLog,
+      appendSpareParts:true
     });
   }).then(function(){
     // Step 2: Deduct inventory and/or upload photos
