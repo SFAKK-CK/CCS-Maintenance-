@@ -317,7 +317,7 @@ select{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/
 .mv-assign-btn.general{background:#1a2744;color:white}
 .mv-assign-btn.electrical{background:#1565c0;color:white}
 .mv-assign-btn:disabled{opacity:.4;cursor:not-allowed}
-.mv-assigned-badge{margin:0 16px 6px;background:#e8f5e9;border-radius:10px;padding:10px 14px;font-size:19px;color:#1b5e20;font-weight:700}
+.mv-assigned-badge{margin:0 16px 6px;background:#e8f5e9;border-radius:10px;padding:10px 14px;font-size:19px;color:#1b5e20;font-weight:700;text-align:center}
 .mv-reassign-row{padding:0 16px 14px}
 .mv-reassign-btn{width:100%;padding:12px;background:linear-gradient(135deg,#e65100,#c0392b);color:white;border:none;border-radius:10px;font-size:18px;font-weight:700;font-family:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all .15s}
 .mv-reassign-btn:active{transform:scale(.98)}
@@ -2002,7 +2002,7 @@ let MACHINE_LIST_ERROR = '';
 function fetchMachineList() {
   MACHINE_LIST_ERROR = '';
   return fetch(APPS_SCRIPT_URL + '?action=getMachines')
-    .then(function(r){ return r.json(); })
+    .then(safeJson)
     .then(function(d){
       if (d && d.success && Array.isArray(d.machines) && d.machines.length) {
         // FORMAT IS LOAD-BEARING — must be "NAME (CODE)".
@@ -2207,6 +2207,20 @@ function relativeTime(dateInput) {
 // On any failure (network, HTTP error, non-JSON response, or success:false
 // from the server) this throws, so existing try/catch blocks at each call
 // site display the actual error to the user.
+// Apps Script answers with an HTML error page when something escapes doGet —
+// r.json() then dies with "Unexpected token '<'". Read as text first so the
+// user sees a real message and can retry, instead of a parser error.
+async function safeJson(r) {
+  var txt = await r.text();
+  try { return JSON.parse(txt); }
+  catch (e) {
+    if (txt && txt.trim().charAt(0) === '<') {
+      throw new Error('เซิร์ฟเวอร์ตอบกลับไม่ถูกต้อง กรุณาลองอีกครั้ง / Server returned an error page — please try again');
+    }
+    throw new Error('อ่านข้อมูลจากเซิร์ฟเวอร์ไม่ได้ / Could not read the server response');
+  }
+}
+
 async function postToScript(payload) {
   let r;
   try {
@@ -2579,7 +2593,7 @@ async function searchTicket() {
   res.innerHTML = '<div class="tr-empty"><div class="spinner-sm"></div>กำลังค้นหา…</div>';
   try {
     const r = await fetch(APPS_SCRIPT_URL + '?action=getTickets&includeAll=true');
-    const json = await r.json();
+    const json = await safeJson(r);
     if (!json.success) throw new Error(json.error);
     const ticket = json.tickets.find(t => t.ticketNumber === num);
     if (!ticket) { res.innerHTML = '<div class="ticket-result"><div class="tr-empty">❌ ไม่พบหมายเลข Ticket นี้<br><small>Ticket not found: ' + num + '</small></div></div>'; return; }
@@ -2771,7 +2785,7 @@ async function lookupTicket() {
   document.getElementById('usErr').classList.remove('show');
   try {
     const r = await fetch(APPS_SCRIPT_URL + '?action=getTickets&includeAll=true');
-    const json = await r.json();
+    const json = await safeJson(r);
     if (!json.success) throw new Error(json.error);
     const ticket = json.tickets.find(t => t.ticketNumber === num);
     if (!ticket) { toast('ไม่พบ Ticket: ' + num, 'error'); return; }
@@ -3132,7 +3146,7 @@ async function loadManagerView() {
 
   try {
     const r = await fetch(APPS_SCRIPT_URL + '?action=getTickets');
-    const json = await r.json();
+    const json = await safeJson(r);
     if (!json.success) throw new Error(json.error);
     mvTickets = json.tickets;
     renderManagerView(mvTickets);
@@ -4144,7 +4158,7 @@ function doLogin() {
   document.getElementById('loginErr').textContent = '';
   showLoading('กำลังตรวจสอบ...');
   fetch(APPS_SCRIPT_URL + '?action=verifyStaff&staffId=' + _loginCode)
-    .then(function(r) { return r.json(); })
+    .then(safeJson)
     .then(function(data) {
       hideLoading();
       if (!data.success) {
@@ -4198,14 +4212,14 @@ function loadTechTickets(staff, opts) {
   if (!_techParts.length) {
     _techPartsLoading = true; _techPartsErr = '';
     fetch(APPS_SCRIPT_URL + '?action=getInventoryItems')
-      .then(function(r){return r.json();})
+      .then(safeJson)
       .then(function(d){ if(d.success){ _techParts=d.items||[]; } else { _techPartsErr = d.error||'load failed'; } })
       .catch(function(e){ _techPartsErr = e.message||'network error'; })
       .then(function(){ _techPartsLoading = false; _techPartsRedraw(); });
   }
 
   return fetch(APPS_SCRIPT_URL + '?action=getTechTickets&staffId=' + staff.id)
-    .then(function(r) { return r.json(); })
+    .then(safeJson)
     .then(function(data) {
       hideLoading();
       _techTickets = data.tickets || [];
