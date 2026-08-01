@@ -4288,6 +4288,13 @@ function tInqMode(m,el){
   if(txt)txt.style.display=(m==='inv')?'none':'block';
   tInqRSP();
 }
+// Requestable only when out of stock, or at/below the minimum held in
+// ฐานข้อมูลรายการ column E. Numeric rather than reading the Thai status text,
+// so a wording change in the sheet cannot flip the rule.
+function tInqCanRequest(p){
+  var stock=Number(p.stock)||0, min=Number(p.minStock)||0;
+  return stock<=0 || (min>0 && stock<=min);
+}
 function tInqFP(){tInqRP((document.getElementById('tInqQ').value||'').trim());}
 function tInqRP(q){var el=document.getElementById('tInqPR');if(!el)return;var h='';q=q.toLowerCase();
   if(!_techParts.length){
@@ -4297,9 +4304,19 @@ function tInqRP(q){var el=document.getElementById('tInqPR');if(!el)return;var h=
   }
   _techParts.forEach(function(p){if(q&&p.name.toLowerCase().indexOf(q)<0&&p.code.toLowerCase().indexOf(q)<0)return;if(_inqSelected.find(function(s){return s.code===p.code;}))return;
   var sc=p.stock<=0?'td-stock-out':(p.stock<=3?'td-stock-low':'td-stock-ok'),sl=p.stock<=0?'หมด':(p.stock<=3?'ต่ำ '+p.stock:'คงเหลือ '+p.stock);
+  // A purchase request is only justified when stock is exhausted or at/below the
+  // minimum. Anything still above its minimum is shown but not selectable —
+  // other departments can't see ENG's stock levels, so an accidental tap here
+  // would put a PO through for something already on the shelf.
+  if(!tInqCanRequest(p)){
+    h+='<div class="td-part-row" style="opacity:.5;cursor:not-allowed" title="มีของในสต็อก"><div><div class="td-part-name">'+esc(p.name)+'</div><div class="td-part-code">'+esc(p.code)+' | '+esc(p.unit)+' · มีในสต็อก ไม่ต้องขอซื้อ</div></div><span class="td-stock-badge '+sc+'">'+sl+'</span></div>';
+    return;
+  }
   h+='<div class="td-part-row" onclick="tInqAP(\''+esc(p.code)+'\')"><div><div class="td-part-name">'+esc(p.name)+'</div><div class="td-part-code">'+esc(p.code)+' | '+esc(p.unit)+'</div></div><span class="td-stock-badge '+sc+'">'+sl+'</span></div>';});
   el.innerHTML=h;}
-function tInqAP(c){var p=_techParts.find(function(x){return x.code===c;});if(p)_inqSelected.push({code:p.code,name:p.name,unit:p.unit,stock:p.stock,qty:1});tInqRP(document.getElementById('tInqQ')?document.getElementById('tInqQ').value:'');tInqRSP();}
+function tInqAP(c){var p=_techParts.find(function(x){return x.code===c;});
+  if(p&&!tInqCanRequest(p)){toast('ยังมีของในสต็อก ไม่ต้องขอซื้อ','warn');return;}
+  if(p)_inqSelected.push({code:p.code,name:p.name,unit:p.unit,stock:p.stock,qty:1});tInqRP(document.getElementById('tInqQ')?document.getElementById('tInqQ').value:'');tInqRSP();}
 function tInqRemP(c){_inqSelected=_inqSelected.filter(function(s){return s.code!==c;});tInqRP(document.getElementById('tInqQ')?document.getElementById('tInqQ').value:'');tInqRSP();}
 function tInqChQ(c,d){var s=_inqSelected.find(function(x){return x.code===c;});if(s)s.qty=Math.max(1,s.qty+d);tInqRSP();}
 function tInqRSP(){var el=document.getElementById('tInqSP');if(!el)return;var h='';
@@ -4530,7 +4547,10 @@ function tSaveUpdDo(rc,techName){
       return {name:s.name,category:s.category||'',unit:s.unit||'',
               minStock:s.minStock||0,location:s.location||''};
     });
-    var correctionInq='Cause / Saethu: '+rc+'\n\nItems Requested:\n'+itemDesc;
+    // Column O = narrative only (cause / how it was fixed).
+    // Column P = the spare-parts story; the requested list goes there.
+    var correctionInq='🔍 สาเหตุ: '+rc;
+    var requestedInq='ขอซื้อ / Requested:\n'+itemDesc;
     postToScript({action:'updateTicketStatus',ticketNumber:_techCurrent.ticketNumber,status:'\u{1F4CB} Inquiring for Quotation',technician:techName,correction:correctionInq,spareParts:requestedInq,notifyPurchasing:true,newItems:newItems,quotationPhotos:_updPhotos.map(function(p){return{name:p.name,data:p.data};})}).then(function(){hideLoading();tBack();toast('ส่งใบขอซื้อให้ GM อนุมัติแล้ว ✓');}).catch(function(e){hideLoading();toast('Error: '+e.message,'error');});
   } else if(_techNS==='Outside Team'){
     var det=(document.getElementById('tUDetNonInq').value||'').trim();if(!det){hideLoading();toast('กรุณากรอกรายละเอียด','error');return;}
