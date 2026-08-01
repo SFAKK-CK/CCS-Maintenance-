@@ -26,6 +26,12 @@ body{font-size:20px;font-family:'Calibri','Noto Sans Thai','Helvetica Neue',Aria
 .sp-fam-row:active{transform:scale(.97)}
 .sp-fam-row:hover{box-shadow:0 3px 10px rgba(15,30,61,.08)}
 
+.td-ro{margin:10px 14px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden}
+.td-ro-row{display:flex;gap:12px;padding:11px 14px;border-bottom:1px solid #f1f5f9}
+.td-ro-row:last-child{border-bottom:none}
+.td-ro-lbl{flex:0 0 34%;font-size:14px;color:#64748b}
+.td-ro-val{flex:1;font-size:14px;color:#0f172a;font-weight:600;white-space:pre-wrap;word-break:break-word}
+
 /* ─── PAGE SYSTEM ─── */
 .page{display:none;min-height:100vh}
 .page.active{display:block}
@@ -4567,6 +4573,36 @@ function tRenderDetail(){
     h+='<div class="td-banner danger"><div class="bt">🔒 ใบงานถูกยกเลิก / Ticket Cancelled</div><div class="bs">ไม่สามารถอัพเดทได้ — หากยังต้องการซ่อม กรุณาแจ้งใหม่<br>Locked — submit a new ticket if work is still needed.</div></div>';
     h+=logHtml;document.getElementById('techDetailInner').innerHTML=h;return;
   }
+  // ── Completed → read-only ─────────────────────────────────────────
+  // A closed ticket must not reopen the edit panels: stock has already been
+  // deducted, so re-completing would double-deduct. Same early-return shape as
+  // the Cancelled branch above.
+  if(st==='Completed'){
+    var _cPhotos=tParsePhotos(t.techPhotos||'');
+    var rowsRO=[
+      ['\u{1F527} \u0E0A\u0E48\u0E32\u0E07', t.technician||'\u2014'],
+      ['\u{1F50D} \u0E2A\u0E32\u0E40\u0E2B\u0E15\u0E38 / \u0E27\u0E34\u0E18\u0E35\u0E41\u0E01\u0E49', t.correction||'\u2014'],
+      ['\u{1F4E6} \u0E2D\u0E30\u0E44\u0E2B\u0E25\u0E48', t.spareParts||'\u2014'],
+      ['\u{1F516} PO Number', t.poNumber||'\u2014'],
+      ['\u2705 \u0E40\u0E2A\u0E23\u0E47\u0E08\u0E40\u0E21\u0E37\u0E48\u0E2D', t.completedDate?(function(d){var x=new Date(d);return isNaN(x)?String(d):(('0'+x.getDate()).slice(-2)+'/'+('0'+(x.getMonth()+1)).slice(-2)+'/'+x.getFullYear()+' '+('0'+x.getHours()).slice(-2)+':'+('0'+x.getMinutes()).slice(-2));})(t.completedDate):'\u2014']
+    ];
+    h+='<div class="td-banner ok"><div class="bt">\u2705 \u0E1B\u0E34\u0E14\u0E07\u0E32\u0E19\u0E41\u0E25\u0E49\u0E27 / Completed</div>' +
+       '<div class="bs">\u0E14\u0E39\u0E44\u0E14\u0E49\u0E2D\u0E22\u0E48\u0E32\u0E07\u0E40\u0E14\u0E35\u0E22\u0E27 \u2014 \u0E41\u0E01\u0E49\u0E44\u0E02\u0E44\u0E21\u0E48\u0E44\u0E14\u0E49 / Read-only</div></div>';
+    h+='<div class="td-ro">';
+    rowsRO.forEach(function(r){
+      h+='<div class="td-ro-row"><div class="td-ro-lbl">'+r[0]+'</div><div class="td-ro-val">'+esc(r[1])+'</div></div>';
+    });
+    h+='</div>';
+    h+=photoHtml;
+    if(_cPhotos.length){
+      h+='<div style="font-size:12px;font-weight:600;padding:8px 14px 4px;color:#64748b">\u{1F4F7} \u0E23\u0E39\u0E1B\u0E2B\u0E25\u0E31\u0E07\u0E0B\u0E48\u0E2D\u0E21 ('+_cPhotos.length+')</div>';
+      h+='<div style="display:flex;gap:6px;overflow-x:auto;padding:4px 14px 8px;-webkit-overflow-scrolling:touch">';
+      _cPhotos.forEach(function(p){h+='<img src="'+esc(p.thumb)+'" onclick="window.open(\''+esc(p.full)+'\',\'_blank\')" style="width:80px;height:80px;border-radius:8px;object-fit:cover;flex:none;border:1px solid #e2e8f0;cursor:pointer">';});
+      h+='</div>';
+    }
+    h+=logHtml;document.getElementById('techDetailInner').innerHTML=h;return;
+  }
+
   var _hasPO=!!(t.poNumber&&t.poNumber.trim());
   var _isFroz=tFroz(st)&&!(st==='Waiting Parts'&&_hasPO);
   if(_isFroz){
