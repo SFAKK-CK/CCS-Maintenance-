@@ -4291,9 +4291,59 @@ function tInqMode(m,el){
 // Requestable only when out of stock, or at/below the minimum held in
 // ฐานข้อมูลรายการ column E. Numeric rather than reading the Thai status text,
 // so a wording change in the sheet cannot flip the rule.
+var _inqGmUnlock=false;   // set by the GM passcode prompt, cleared on tOpen()
 function tInqCanRequest(p){
+  if(_inqGmUnlock) return true;          // GM approved an exception for this ticket
   var stock=Number(p.stock)||0, min=Number(p.minStock)||0;
   return stock<=0 || (min>0 && stock<=min);
+}
+
+// ── GM override for the stock gate ─────────────────────────────────
+// Tapping a greyed-out (in-stock) part opens this. On the correct GM passcode
+// the gate lifts for the REST OF THIS TICKET only — tOpen() clears it.
+// The passcode is checked SERVER-SIDE via ?action=validatePasscode so it is not
+// readable in this file, and it follows any rotation done through the backend.
+function tInqGmUnlock(code){
+  var ov=document.createElement('div');
+  ov.id='inqGmOv';
+  ov.style.cssText='position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px';
+  ov.innerHTML='<div style="background:#fff;border-radius:16px;padding:22px 20px;max-width:340px;width:100%;box-shadow:0 20px 50px rgba(0,0,0,.3)">'
+    +'<div style="font-size:16px;font-weight:800;color:#1a2744;margin-bottom:4px">👑 GM Override</div>'
+    +'<div style="font-size:13px;color:#64748b;line-height:1.55;margin-bottom:14px">รายการนี้ยังมีของในสต็อก<br>ใส่รหัส GM เพื่ออนุมัติการขอซื้อ</div>'
+    +'<input id="inqGmPin" type="password" inputmode="numeric" maxlength="4" autocomplete="off" '
+    +'style="width:100%;box-sizing:border-box;padding:12px;font-size:24px;text-align:center;letter-spacing:12px;border:1.5px solid #cbd5e1;border-radius:10px;font-family:inherit">'
+    +'<div id="inqGmErr" style="display:none;color:#c0392b;font-size:13px;font-weight:700;text-align:center;margin-top:8px">❌ รหัสไม่ถูกต้อง</div>'
+    +'<div style="display:flex;gap:8px;margin-top:14px">'
+    +'<button id="inqGmOk" style="flex:1;padding:11px;background:#1a73e8;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:700;font-family:inherit;cursor:pointer">ยืนยัน</button>'
+    +'<button id="inqGmNo" style="flex:1;padding:11px;background:#eef2f7;color:#475569;border:none;border-radius:9px;font-size:14px;font-weight:600;font-family:inherit;cursor:pointer">ยกเลิก</button>'
+    +'</div></div>';
+  document.body.appendChild(ov);
+  var pin=ov.querySelector('#inqGmPin');
+  function close(){ if(ov.parentNode) ov.parentNode.removeChild(ov); }
+  function submit(){
+    var v=(pin.value||'').trim();
+    if(v.length<4) return;
+    pin.disabled=true;
+    postToScript({action:'validatePasscode',type:'gm',passcode:v}).then(function(res){
+      if(res&&res.valid){
+        _inqGmUnlock=true;
+        close();
+        toast('GM อนุมัติแล้ว — เลือกอะไหล่ได้','success');
+        tInqAP(code);                                  // add the part they tapped
+      }else{
+        pin.disabled=false;pin.value='';pin.focus();
+        ov.querySelector('#inqGmErr').style.display='block';
+      }
+    }).catch(function(e){
+      pin.disabled=false;
+      ov.querySelector('#inqGmErr').textContent='Error: '+e.message;
+      ov.querySelector('#inqGmErr').style.display='block';
+    });
+  }
+  ov.querySelector('#inqGmOk').onclick=submit;
+  ov.querySelector('#inqGmNo').onclick=close;
+  pin.addEventListener('input',function(){ if(pin.value.length===4) submit(); });
+  setTimeout(function(){pin.focus();},50);
 }
 function tInqFP(){tInqRP((document.getElementById('tInqQ').value||'').trim());}
 function tInqRP(q){var el=document.getElementById('tInqPR');if(!el)return;var h='';q=q.toLowerCase();
@@ -4309,14 +4359,20 @@ function tInqRP(q){var el=document.getElementById('tInqPR');if(!el)return;var h=
   // other departments can't see ENG's stock levels, so an accidental tap here
   // would put a PO through for something already on the shelf.
   if(!tInqCanRequest(p)){
-    h+='<div class="td-part-row" style="opacity:.5;cursor:not-allowed" title="มีของในสต็อก"><div><div class="td-part-name">'+esc(p.name)+'</div><div class="td-part-code">'+esc(p.code)+' | '+esc(p.unit)+' · มีในสต็อก ไม่ต้องขอซื้อ</div></div><span class="td-stock-badge '+sc+'">'+sl+'</span></div>';
+    h+='<div class="td-part-row" style="opacity:.55" onclick="tInqGmUnlock(\''+esc(p.code)+'\')" title="ต้องใช้รหัส GM"><div><div class="td-part-name">'+esc(p.name)+'</div><div class="td-part-code">'+esc(p.code)+' | '+esc(p.unit)+' · 🔒 มีในสต็อก — แตะเพื่อขอรหัส GM</div></div><span class="td-stock-badge '+sc+'">'+sl+'</span></div>';
     return;
   }
   h+='<div class="td-part-row" onclick="tInqAP(\''+esc(p.code)+'\')"><div><div class="td-part-name">'+esc(p.name)+'</div><div class="td-part-code">'+esc(p.code)+' | '+esc(p.unit)+'</div></div><span class="td-stock-badge '+sc+'">'+sl+'</span></div>';});
   el.innerHTML=h;}
 function tInqAP(c){var p=_techParts.find(function(x){return x.code===c;});
   if(p&&!tInqCanRequest(p)){toast('ยังมีของในสต็อก ไม่ต้องขอซื้อ','warn');return;}
-  if(p)_inqSelected.push({code:p.code,name:p.name,unit:p.unit,stock:p.stock,qty:1});tInqRP(document.getElementById('tInqQ')?document.getElementById('tInqQ').value:'');tInqRSP();}
+  // Flag lines that only got through because the GM lifted the stock gate, so
+  // the PR shows Purchasing and the GM it was a deliberate exception.
+  if(p){
+    var st=Number(p.stock)||0, mn=Number(p.minStock)||0;
+    var viaOverride=_inqGmUnlock&&!(st<=0||(mn>0&&st<=mn));
+    _inqSelected.push({code:p.code,name:p.name,unit:p.unit,stock:p.stock,qty:1,gmOverride:viaOverride});
+  }tInqRP(document.getElementById('tInqQ')?document.getElementById('tInqQ').value:'');tInqRSP();}
 function tInqRemP(c){_inqSelected=_inqSelected.filter(function(s){return s.code!==c;});tInqRP(document.getElementById('tInqQ')?document.getElementById('tInqQ').value:'');tInqRSP();}
 function tInqChQ(c,d){var s=_inqSelected.find(function(x){return x.code===c;});if(s)s.qty=Math.max(1,s.qty+d);tInqRSP();}
 function tInqRSP(){var el=document.getElementById('tInqSP');if(!el)return;var h='';
@@ -4331,6 +4387,7 @@ function tInqRSP(){var el=document.getElementById('tInqSP');if(!el)return;var h=
 function tOpen(tid,mode){
   _techCurrent=_techTickets.find(function(x){return x.ticketNumber===tid;});if(!_techCurrent)return;
   _techMode=mode||'u';_techNS='In Progress';_techSelected=[];_inqSelected=[];_inqMode='inv';_updPhotos=[];_cmpPhotos=[];
+  _inqGmUnlock=false;   // GM stock-gate override is per ticket — never carries over
   tRenderDetail();
   document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
   document.getElementById('page-tech-detail').classList.add('active');window.scrollTo(0,0);
@@ -4539,7 +4596,8 @@ function tSaveUpdDo(rc,techName){
       return (i+1)+'. '+s.name
            +(s.isOther?' [รายการใหม่ / NEW ITEM'+(s.category?' — '+s.category:'')+']':' ('+s.code+')')
            +' - '+s.qty+' '+s.unit
-           +(s.isOther?'':' (Stock: '+s.stock+')');
+           +(s.isOther?'':' (Stock: '+s.stock+')')
+           +(s.gmOverride?' ⚠️ [GM override — ยังมีในสต็อก]':'');
     }).join('\n');
     // Parts that do not exist yet are registered in ฐานข้อมูลรายการ as "Inactive"
     // by the backend, so the store team can review and activate them.
