@@ -4632,10 +4632,18 @@ function tRP(q){var el=document.getElementById('tPR');if(!el)return;var h='';q=q
   }
   _techParts.forEach(function(p){if(q&&p.name.toLowerCase().indexOf(q)<0&&p.code.toLowerCase().indexOf(q)<0)return;if(_techSelected.find(function(s){return s.code===p.code;}))return;
   var sc=p.stock<=0?'td-stock-out':(p.stock<=3?'td-stock-low':'td-stock-ok'),sl=p.stock<=0?'หมด':(p.stock<=3?'ต่ำ '+p.stock:'คงเหลือ '+p.stock);
+  // A part with nothing on the shelf cannot be issued out. Shown, but not
+  // selectable — issuing it would push the balance further negative.
+  if((Number(p.stock)||0)<=0){
+    h+='<div class="td-part-row" style="opacity:.5;cursor:not-allowed" title="ไม่มีของในสต็อก"><div><div class="td-part-name">'+esc(p.name)+'</div><div class="td-part-code">'+esc(p.code)+' | '+esc(p.unit)+' · หมด — เบิกไม่ได้</div></div><span class="td-stock-badge '+sc+'">'+sl+'</span></div>';
+    return;
+  }
   h+='<div class="td-part-row" onclick="tAP(\''+esc(p.code)+'\')"><div><div class="td-part-name">'+esc(p.name)+'</div><div class="td-part-code">'+esc(p.code)+' | '+esc(p.unit)+'</div></div><span class="td-stock-badge '+sc+'">'+sl+'</span></div>';});
   // Always show "Other" option at the bottom for unlisted parts
   el.innerHTML=h;}
-function tAP(c){var p=_techParts.find(function(x){return x.code===c;});if(p)_techSelected.push({code:p.code,name:p.name,unit:p.unit,stock:p.stock,qty:1});tRP(document.getElementById('tPQ')?document.getElementById('tPQ').value:'');tRSP();}
+function tAP(c){var p=_techParts.find(function(x){return x.code===c;});
+  if(p&&(Number(p.stock)||0)<=0){toast('ไม่มีของในสต็อก — เบิกไม่ได้','warn');return;}
+  if(p)_techSelected.push({code:p.code,name:p.name,unit:p.unit,stock:p.stock,qty:1});tRP(document.getElementById('tPQ')?document.getElementById('tPQ').value:'');tRSP();}
 var TD_CATS=['ระบบทำความเย็น','ไฟฟ้าและสื่อสาร','ประปาและสี','อะไหล่ไลน์ผลิต','อะไหล่ซ่อมทั่วไป','งานซ่อมมอเตอร์','เครื่องมือช่าง'];
 var TD_UNITS=['ตัว','อัน','ชุด','เส้น','เมตร','ตลับ','กล่อง','หลอด','ใบ','ลูก','กระป๋อง','ม้วน','ถุง','แผ่น','ฟุต','ลิตร','ถัง','เครื่อง','ก.ก','ML','CC','pcs'];
 var TD_LOCS=['ช่างทำความเย็น','ช่างทั่วไป','ช่างซ่อมบำรุง','ช่างซ่อมไฟฟ้า'];
