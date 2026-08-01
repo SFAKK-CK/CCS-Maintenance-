@@ -2251,7 +2251,8 @@ function resetUpdateStatus() {
   document.getElementById('usStatus').value = '';
   var tf = document.getElementById('usTech');
   tf.value = ''; tf.readOnly = false;
-  tf.style.background = ''; tf.style.borderColor = ''; tf.style.color = ''; tf.style.fontWeight = '';
+  tf.style.background = ''; tf.style.borderColor = ''; tf.style.color = ''; tf.style.fontWeight = ''; tf.style.cursor = '';
+  if (window._loggedInUser && window._loggedInUser.name) lockNameField(tf, window._loggedInUser.name);
   document.getElementById('usCorrection').value = '';
   document.getElementById('usParts').value = '';
   document.getElementById('usPoNumber').value = '';
@@ -2325,12 +2326,28 @@ let isUrgent = false, photos = [], ticketNumber = '';
 // initForm() is the one choke point for the form: the home card, the
 // technician's "create ticket" button and both resets all pass through it.
 // Both fields stay editable — someone may raise a ticket for a colleague.
+// Lock an input to a value taken from the Staff ID login. readOnly (not
+// disabled) so the value still submits with the form.
+function lockNameField(el, name) {
+  if (!el || !name) return;
+  el.value = name;
+  el.readOnly = true;
+  el.setAttribute('aria-readonly', 'true');
+  el.style.background = '#f1f5f9';
+  el.style.borderColor = '#cbd5e1';
+  el.style.color = '#334155';
+  el.style.fontWeight = '700';
+  el.style.cursor = 'not-allowed';
+}
+
 function prefillReporter() {
   var u = window._loggedInUser;
   if (!u) return;
 
-  var rn = document.getElementById('rname');
-  if (rn && u.name && !rn.value.trim()) rn.value = u.name;
+  // Identity comes from the Staff ID — filled AND locked, so every ticket
+  // carries the registry name of whoever was logged in, with no typos and no
+  // reporting under someone else's name.
+  lockNameField(document.getElementById('rname'), u.name);
 
   // Department comes from Staff Registry column D as free text, while the form
   // is a fixed <select>. Match exactly first, then loosely; if neither hits,
@@ -2785,6 +2802,10 @@ async function lookupTicket() {
     if (savedTech) {
       techField.readOnly = true; techField.style.background = '#f0fdf4';
       techField.style.borderColor = '#86efac'; techField.style.color = '#166534'; techField.style.fontWeight = '700';
+    } else if (window._loggedInUser && window._loggedInUser.name) {
+      // No technician on the ticket yet — attribute the update to whoever is
+      // logged in, locked. (A saved technician still wins, branch above.)
+      lockNameField(techField, window._loggedInUser.name);
     } else {
       techField.readOnly = false; techField.style.background = '';
       techField.style.borderColor = ''; techField.style.color = ''; techField.style.fontWeight = '';
@@ -3954,7 +3975,10 @@ function openCancelModal(ticketNumber, hasPO) {
   document.getElementById('cancelModalTicketNum').textContent = ticketNumber;
   document.getElementById('cancelPOWarning').style.display = cpCancelHasPO ? 'block' : 'none';
   document.getElementById('cancelReason').value = '';
-  document.getElementById('cancelledBy').value = '';
+  // The cancel is performed by whoever is logged in — name locked from Staff ID.
+  var _cb = document.getElementById('cancelledBy');
+  _cb.value = '';
+  if (window._loggedInUser && window._loggedInUser.name) lockNameField(_cb, window._loggedInUser.name);
   document.getElementById('cancelReasonErr').style.display = 'none';
   document.getElementById('cancelConfirmBtn').disabled = false;
   document.getElementById('cancelConfirmBtn').textContent = '❌ ยืนยันการยกเลิก / Confirm Cancel';
